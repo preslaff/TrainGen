@@ -1,0 +1,111 @@
+# TrainGen SSOT — training scenario manifest
+# Language-neutral. Defines intent + semantic targets only.
+# Narration text is GENERATED from `goal` + per-step `intent`, never written here.
+# Locator priority: testid > label > role+name. Never raw CSS.
+
+defaults:
+  base_url: "https://staging.<your-platform>.com"   # demo tenant, NOT prod
+  viewport: { width: 1920, height: 1080 }
+  fps: 30
+  cursor_travel_s: 0.8
+  tail_pad_s: 0.4
+  langs: [bg, en]
+  voices:                       # fixed per language for library consistency
+    bg: "voice_bg_calm"
+    en: "voice_en_calm"
+
+scenarios:
+
+  - scenario_id: add-partner-profile
+    title:
+      bg: "Добавяне на партньорски профил"
+      en: "Adding a partner profile"
+    role: admin
+    goal: >
+      Teach an admin how to create a new tourism partner profile from scratch,
+      fill the required fields, and publish it so it appears in search.
+    entry_route: "/admin/partners"
+    steps:
+      - id: open-new-form
+        intent: "Open the new-partner form from the partners list"
+        locator: { testid: "partners-add-btn" }     # fallback: role=button name="Add partner"
+        action: click
+        emphasis: highlight
+        settle_ms: 800
+
+      - id: enter-name
+        intent: "Enter the partner's business name"
+        locator: { label: "Business name" }
+        action: fill
+        value: "Хотел Морска Звезда"
+        emphasis: zoom
+        settle_ms: 400
+
+      - id: select-category
+        intent: "Choose the partner category so it routes to the right section"
+        locator: { label: "Category" }
+        action: select
+        value: "Accommodation"
+        emphasis: highlight
+        settle_ms: 600
+
+      - id: enter-region
+        intent: "Set the region used for location-based search"
+        locator: { label: "Region" }
+        action: select
+        value: "Varna"
+        emphasis: none
+        settle_ms: 600
+
+      - id: save-draft
+        intent: "Save the profile as a draft before publishing"
+        locator: { testid: "partner-save-draft" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200
+
+      - id: publish
+        intent: "Publish so the profile becomes visible in search results"
+        locator: { testid: "partner-publish" }
+        action: click
+        emphasis: zoom
+        settle_ms: 1500
+
+  - scenario_id: member-update-profile
+    title:
+      bg: "Редактиране на собствен профил"
+      en: "Editing your own profile"
+    role: member
+    goal: >
+      Teach a partner-member how to find their profile, update their
+      description and contact info, and save changes.
+    entry_route: "/dashboard"
+    steps:
+      - id: open-my-profile
+        intent: "Navigate to your own partner profile from the dashboard"
+        locator: { role: "link", name: "My profile" }
+        action: click
+        emphasis: highlight
+        settle_ms: 800
+
+      - id: edit-mode
+        intent: "Switch the profile into edit mode"
+        locator: { testid: "profile-edit-btn" }
+        action: click
+        emphasis: highlight
+        settle_ms: 600
+
+      - id: update-description
+        intent: "Update the public description that visitors read"
+        locator: { label: "Description" }
+        action: fill
+        value: "Семеен хотел на първа линия с гледка към морето."
+        emphasis: zoom
+        settle_ms: 500
+
+      - id: save-changes
+        intent: "Save the changes so they go live"
+        locator: { testid: "profile-save" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200

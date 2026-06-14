@@ -1,0 +1,8 @@
+PyYAML>=6.0
+playwright>=1.40
+soundfile>=0.12
+
+# TTS backend — pick one (set TRAINGEN_TTS):
+#   offline  (default): system `espeak-ng` for audible output, else silent WAVs.
+#                       apt install espeak-ng ffmpeg
+#   omnivoice         : pip install omnivoice torch   # GPU strongly recommended

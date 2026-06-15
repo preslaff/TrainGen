@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TrainGen is an auto-generated, narrated, dual-language (BG + EN) video training pipeline for a tourism platform. It drives the **real** platform UI through Playwright and produces subtitled MP4s. It is **living documentation, not a video editor**: when the platform's UI changes, re-running the pipeline regenerates every affected video. The intended endpoint is a CI hook on release tags.
 
-**Status:** v0.1 scaffolded. The full pipeline exists under `traingen/` (script → narrate → choreograph → record → compose), driven by `run.py`. Overlays, subtitles (`subtitle.py`), intro/outro compose, and LLM discovery (`discover.py`) are **not yet built** — they are v0.2+. `BLUEPRINT.md` remains the complete design spec; read it before extending. The manifest now lives at `manifest/scenarios.yaml`.
+**Status:** v0.1 scaffolded. The full pipeline exists under `traingen/` (script → narrate → choreograph → record → compose), driven by `run.py`. Overlays, subtitles (`subtitle.py`), intro/outro compose, and LLM discovery (`discover.py`) are **not yet built** — they are v0.2+. **`docs/DESIGN.md` is the authoritative top-level design** (it resolves conflicts across the detail docs and indexes them); `docs/ROADMAP.md` is the phased plan; `docs/BLUEPRINT.md` holds the production-pipeline detail. Read DESIGN.md first when extending. The manifest now lives at `manifest/scenarios.yaml`.
 
 ## Commands
 
@@ -44,7 +44,7 @@ Language-neutral. Defines **intent + semantic targets only**. Narration text is 
 
 - **Locator priority: `testid` > `label` > `role+name`. Never raw CSS** (brittle against copy/markup changes).
 - `scenario_id` is kebab-case, stable, and used in output filenames — don't rename casually.
-- Schema and field meanings are in `BLUEPRINT.md` §3.
+- Schema and field meanings are in `docs/BLUEPRINT.md` §3.
 
 ## Dual-language
 
@@ -61,7 +61,7 @@ The full chain runs **once per language**. BG and EN narration durations differ 
 
 ## Build order
 
-Follow `BLUEPRINT.md` §13. Ship **v0.1 first**: one hand-written scenario, BG only, no overlays, Playwright-native video, narration pinned by measured offsets. If measured-offset audio placement holds sync on a ~6-step scenario, the rest is assembly. Don't build overlays, EN, subtitles, discovery, or CI until v0.1 proves the timing model.
+Follow `docs/BLUEPRINT.md` §13. Ship **v0.1 first**: one hand-written scenario, BG only, no overlays, Playwright-native video, narration pinned by measured offsets. If measured-offset audio placement holds sync on a ~6-step scenario, the rest is assembly. Don't build overlays, EN, subtitles, discovery, or CI until v0.1 proves the timing model.
 
 ## CLI
 

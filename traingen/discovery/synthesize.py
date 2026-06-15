@@ -41,8 +41,12 @@ A slice of feature_inventory.json for ONE resource group: endpoints[], routes[],
 usage[], testid_gaps[]. Treat it as ground truth. You have NO other knowledge of the app.
 
 PROCEDURE
-1. RECONCILE endpoints and routes (use resource/verb/field hints; fix obvious naming
-   mismatches; if a join is unclear, record it in open_questions — do not force it).
+1. RECONCILE endpoints and routes. The group's own `routes` may be empty or may not match
+   the endpoints' noun. `candidate_routes` are same-role surfaces from elsewhere in the app
+   whose noun may differ (e.g. an `announcements` API surfaced under a `communications`
+   page). Pick the best-matching surface from `routes` OR `candidate_routes`, bind to ITS
+   controls, and list the chosen route(s) in source_refs.routes. If no surface plausibly
+   matches, leave steps unbound and record it in open_questions — do not force a join.
 2. SELECT TASKS: emit a scenario only for real user tasks (create, edit, publish, remove,
    search). Fold list/view into other scenarios as nav/verification, not standalone
    scenarios. Skip health checks, webhooks, internal/utility endpoints.
@@ -50,10 +54,11 @@ PROCEDURE
    fill REQUIRED request_fields in the order controls appear, optional field only if
    pedagogically necessary, submit/save, then a final step showing the success state.
    Keep scenarios to 4-9 steps; split anything longer.
-4. BIND every step locator to a control that EXISTS in routes[].controls. Priority:
-   testid > i18n_key/label > role+name. Set bound_via. If no control exists for a required
-   action, emit the step with bound_via=unbound, provenance=code:endpoint or inferred, and
-   add an open_question. NEVER invent a selector.
+4. BIND every step locator to a control that EXISTS in routes[].controls OR
+   candidate_routes[].controls. Priority: testid > i18n_key/label > role+name. Set
+   bound_via. If no control exists for a required action, emit the step with
+   bound_via=unbound, provenance=code:endpoint or inferred, and add an open_question.
+   NEVER invent a selector.
 5. SPLIT BY ROLE: role = route role_gate, cross-checked against endpoint security. One role
    per scenario. If a feature serves both roles, emit two scenarios. On conflict pick the
    stricter and add an open_question.
@@ -126,26 +131,55 @@ def _draft_schema() -> dict:
             "required": ["drafts"]}
 
 
+_SCOPES = ("admin", "member")
+
+
+def _group_scope(endpoints: list) -> str | None:
+    """The role scope a group's endpoints sit under, from path segments or security —
+    used to offer same-scope candidate routes for cross-noun reconciliation."""
+    from collections import Counter
+    c = Counter()
+    for e in endpoints:
+        for seg in e.get("path", "").strip("/").split("/"):
+            if seg in _SCOPES:
+                c[seg] += 1
+                break
+        for sec in e.get("security", []):
+            if sec in _SCOPES:
+                c[sec] += 1
+    return c.most_common(1)[0][0] if c else None
+
+
 def group_by_resource(inventory: dict) -> dict:
     """Join endpoints and routes on resource_hint; attach the per-group i18n/usage/gaps
-    slices (SYNTHESIZER §2: batched per resource group)."""
+    slices (SYNTHESIZER §2). Also attach `candidate_routes` — same-role surfaces from
+    elsewhere in the app whose noun may differ from the endpoints' (e.g. an `announcements`
+    API surfaced under a `communications` page) — so Layer 2 can reconcile across nouns."""
     groups: dict = {}
     for e in inventory.get("endpoints", []):
         groups.setdefault(e["resource_hint"], {"endpoints": [], "routes": []})["endpoints"].append(e)
     for r in inventory.get("routes", []):
         groups.setdefault(r["resource_hint"], {"endpoints": [], "routes": []})["routes"].append(r)
+
+    all_routes = inventory.get("routes", [])
     for res, g in groups.items():
-        route_set = {r["route"] for r in g["routes"]}
+        own = {r["route"] for r in g["routes"]}
+        scope = _group_scope(g["endpoints"])
         g["resource"] = res
         g["i18n"] = inventory.get("i18n", {})
-        g["usage"] = [u for u in inventory.get("usage", []) if u.get("route") in route_set]
-        g["testid_gaps"] = [gp for gp in inventory.get("testid_gaps", []) if gp.get("route") in route_set]
+        g["usage"] = [u for u in inventory.get("usage", []) if u.get("route") in own]
+        g["testid_gaps"] = [gp for gp in inventory.get("testid_gaps", []) if gp.get("route") in own]
+        g["candidate_routes"] = [
+            r for r in all_routes
+            if r["route"] not in own and r.get("controls")
+            and (scope is None or r.get("role_gate") == scope)
+        ] if g["endpoints"] else []
     return groups
 
 
 def _control_index(group: dict):
     testids, labels, roles = set(), set(), set()
-    for r in group["routes"]:
+    for r in group["routes"] + group.get("candidate_routes", []):
         for c in r.get("controls", []):
             if c.get("testid"):
                 testids.add(c["testid"])
@@ -204,7 +238,8 @@ def validate_drafts(result: dict, group: dict) -> list:
 
 
 def _group_slice(group: dict) -> dict:
-    return {k: group[k] for k in ("resource", "endpoints", "routes", "i18n", "usage", "testid_gaps")}
+    return {k: group.get(k) for k in
+            ("resource", "endpoints", "routes", "candidate_routes", "i18n", "usage", "testid_gaps")}
 
 
 def synthesize_group(group: dict, cfg, backend) -> dict:

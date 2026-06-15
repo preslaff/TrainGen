@@ -85,6 +85,28 @@ def test_grouping():
           f"{len(groups['partners']['endpoints'])} endpoints / {len(groups['partners']['routes'])} routes")
 
 
+def test_candidate_routes_enable_cross_noun_binding():
+    # announcements API but the UI lives under a differently-named "communications" page
+    inv = {
+        "meta": {}, "i18n": {"strings": {}}, "usage": [], "testid_gaps": [],
+        "endpoints": [{"operation_id": "create_announcement", "method": "POST",
+                       "path": "/api/v1/admin/announcements", "resource_hint": "announcements",
+                       "security": ["admin"], "request_fields": [], "task_verb_hint": "create"}],
+        "routes": [{"route": "/admin/dashboard/communications", "resource_hint": "communications",
+                    "role_gate": "admin", "controls": [
+                        {"label": "New announcement", "control_type": "button", "role": "button",
+                         "testid": "comms-new", "name_attr": None, "i18n_key": None}]}],
+    }
+    groups = synthesize.group_by_resource(inv)
+    ann = groups["announcements"]
+    assert ann["endpoints"] and not ann["routes"], "noun mismatch: no same-noun route"
+    assert any(r["route"] == "/admin/dashboard/communications" for r in ann["candidate_routes"]), \
+        "same-role route offered as a candidate"
+    testids, _, _ = synthesize._control_index(ann)
+    assert "comms-new" in testids, "candidate-route controls are bindable (cross-noun reconcile)"
+    print("OK  candidate routes: announcements endpoints can bind to the communications page's controls")
+
+
 def test_validation_accepts_and_rejects():
     group = synthesize.group_by_resource(_inventory())["partners"]
     assert synthesize.validate_drafts(PARTNERS_DRAFTS, group) == [], "clean draft must validate"
@@ -120,6 +142,7 @@ def test_run_and_cache():
 
 def main() -> int:
     test_grouping()
+    test_candidate_routes_enable_cross_noun_binding()
     test_validation_accepts_and_rejects()
     test_run_and_cache()
     print("\nall synthesize tests passed")

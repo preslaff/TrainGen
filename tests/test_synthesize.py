@@ -122,6 +122,23 @@ def test_validation_accepts_and_rejects():
     print(f"OK  validation: clean draft passes; bad draft caught {len(errs)} issues")
 
 
+def test_normalize_derives_provenance_and_rejects_bare_role():
+    group = synthesize.group_by_resource(_inventory())["partners"]
+
+    # normalize: scenario provenance becomes the weakest step, regardless of what the model set
+    doc = {"drafts": [{**copy.deepcopy(PARTNERS_DRAFTS["drafts"][0]), "provenance": "inferred"}]}
+    synthesize.normalize(doc)
+    assert doc["drafts"][0]["provenance"] == "code:route", "derived weakest-step provenance"
+
+    # bare role (no name) is rejected — the model must mark unbound instead of guessing
+    bad = copy.deepcopy(PARTNERS_DRAFTS)
+    bad["drafts"][0]["steps"][0] = {**bad["drafts"][0]["steps"][0],
+                                    "bound_via": "role", "locator": {"role": "link"}}
+    errs = synthesize.validate_drafts(bad, group)
+    assert any("role+name not in inventory" in e for e in errs)
+    print("OK  normalize: provenance derived from steps; bare role={role} rejected")
+
+
 def test_run_and_cache():
     shutil.rmtree(prod_config.OUT / "discovery" / "drafts_cache", ignore_errors=True)
     inv = _inventory()
@@ -144,6 +161,7 @@ def main() -> int:
     test_grouping()
     test_candidate_routes_enable_cross_noun_binding()
     test_validation_accepts_and_rejects()
+    test_normalize_derives_provenance_and_rejects_bare_role()
     test_run_and_cache()
     print("\nall synthesize tests passed")
     return 0

@@ -56,9 +56,10 @@ PROCEDURE
    Keep scenarios to 4-9 steps; split anything longer.
 4. BIND every step locator to a control that EXISTS in routes[].controls OR
    candidate_routes[].controls. Priority: testid > i18n_key/label > role+name. Set
-   bound_via. If no control exists for a required action, emit the step with
-   bound_via=unbound, provenance=code:endpoint or inferred, and add an open_question.
-   NEVER invent a selector.
+   bound_via. NEVER bind by role alone without a specific accessible `name`, and never
+   invent a selector. If no inventoried control matches an action, emit the step with
+   bound_via=unbound, an empty locator {}, provenance=code:endpoint or inferred, and an
+   open_question — an honest unbound step is correct; a guessed locator is not.
 5. SPLIT BY ROLE: role = route role_gate, cross-checked against endpoint security. One role
    per scenario. If a feature serves both roles, emit two scenarios. On conflict pick the
    stricter and add an open_question.
@@ -214,27 +215,33 @@ def validate_drafts(result: dict, group: dict) -> list:
         steps = s.get("steps", [])
         if not (4 <= len(steps) <= 9):
             errs.append(f"{sid}: {len(steps)} steps (must be 4-9; split longer tasks)")
-        step_provs = []
         for st in steps:
             sp = st.get("provenance")
             if sp not in PROVENANCE:
                 errs.append(f"{sid}/{st.get('id')}: bad/crawl provenance {sp!r}")
-            else:
-                step_provs.append(sp)
             bv, loc = st.get("bound_via"), st.get("locator", {})
             if bv == "testid" and loc.get("testid") not in testids:
                 errs.append(f"{sid}/{st.get('id')}: testid {loc.get('testid')!r} not in inventory")
             elif bv == "label" and loc.get("label") not in labels:
                 errs.append(f"{sid}/{st.get('id')}: label {loc.get('label')!r} not in inventory")
-            elif bv == "role" and (loc.get("role") not in roles or loc.get("name") not in labels):
-                errs.append(f"{sid}/{st.get('id')}: role+name not in inventory")
+            elif bv == "role" and (not loc.get("name") or loc.get("role") not in roles
+                                   or loc.get("name") not in labels):
+                errs.append(f"{sid}/{st.get('id')}: role+name not in inventory "
+                            "(bind by name, or mark unbound)")
             elif bv == "unbound" and not s.get("open_questions"):
                 errs.append(f"{sid}/{st.get('id')}: unbound step needs an open_question")
-        if step_provs:
-            weakest = min(step_provs, key=lambda p: _PROV_RANK[p])
-            if s.get("provenance") != weakest:
-                errs.append(f"{sid}: provenance {s.get('provenance')!r} != weakest step {weakest!r}")
+    # scenario provenance is derived (the weakest step) — normalized, not validated
     return errs
+
+
+def normalize(result: dict) -> dict:
+    """Derive each scenario's provenance from its steps (the weakest = risk floor), so a
+    model inconsistency on this computed field never fails an otherwise-valid group."""
+    for s in result.get("drafts", []):
+        provs = [st.get("provenance", "inferred") for st in s.get("steps", [])]
+        if provs:
+            s["provenance"] = min(provs, key=lambda p: _PROV_RANK.get(p, 0))
+    return result
 
 
 def _group_slice(group: dict) -> dict:
@@ -253,7 +260,7 @@ def synthesize_group(group: dict, cfg, backend) -> dict:
         prompt = user if attempt == 0 else (
             user + "\n\nYour previous output had these problems — fix them:\n- "
             + "\n- ".join(last_errs))
-        result = backend.complete_json(SYSTEM, prompt, schema)
+        result = normalize(backend.complete_json(SYSTEM, prompt, schema))
         last_errs = validate_drafts(result, group)
         if not last_errs:
             return {"drafts": result["drafts"], "errors": []}

@@ -180,9 +180,9 @@ Everything lands under `out/<scenario_id>/<lang>/`:
 
 These are designed and will get their own sections here as they ship:
 
-- **Discovery (Layers 2–3)** — synthesize draft scenarios from the inventory and verify
-  them with a caged crawl (`docs/DISCOVERY.md`). **[planned v0.4]**. Layer 1 (the feature
-  inventory) is already available — see Section 10.
+- **Discovery Layer 3 (Verify) + human-gate merge** — verify drafts with a caged crawl and
+  merge approved scenarios into the SSOT (`docs/DISCOVERY.md`). **[planned v0.4]**. Layers 1
+  (inventory) and 2 (synthesize) are available — see Sections 10–11.
 - **Overlays** — animated cursor, highlight ring, zoom. **[planned v0.2]**
 - **Subtitles** — soft VTT sidecar per language via aeneas. **[planned v0.3]**
 - **Intro/outro** — branded bookends in compose. **[planned v0.3]**
@@ -214,6 +214,32 @@ endpoint/route/gap counts and the `inventory_hash` (the CI diff key — same com
 the same hash). Control extraction is a heuristic regex scan of each page file (it does
 not follow imported components), so treat `testid_gaps` as a strong signal to confirm, not
 gospel. Verify offline with `make test`.
+
+## 11. Draft scenarios from the inventory — discovery Layer 2 **[available]**
+
+Layer 2 turns `feature_inventory.json` into `drafts.yaml`: it groups the inventory by
+resource, and for each group asks Claude to reconcile endpoints↔routes, decompose features
+into user tasks, sequence steps, and bind each step to an **inventoried** control (never an
+invented selector), tagging pre-crawl provenance. Output is schema-constrained and
+semantically validated (bindings, provenance, 4–9 steps, single role); invalid output is
+regenerated. Results are cached per resource group.
+
+Needs the Anthropic SDK and a key:
+
+```bash
+pip install anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+make synthesize            # reads out/discovery/feature_inventory.json
+# tuning: TRAINGEN_SYNTH_MODEL (default claude-opus-4-8), TRAINGEN_SYNTH_EFFORT (default medium)
+```
+
+Output is `out/discovery/drafts.yaml` (a `discovery_run` header + provenance-tagged
+`drafts[]`). It is **not** the SSOT — a human approves/trims/merges drafts into
+`manifest/scenarios.yaml` (the Layer 3 verify + merge step, v0.4). The command prints any
+groups that failed validation after retries. Cost scales with the number of resource
+groups, so review one group before running the whole inventory.
+
+## Maintenance note
 
 When you implement a ROADMAP milestone, update the matching section here: flip its tag
 from **[planned]** to **[available]**, add the new commands/flags, and move anything from

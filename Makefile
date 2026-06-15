@@ -16,9 +16,13 @@ selftest:  ## prove the timing model offline (no platform/browser needed)
 extract:   ## Layer 1 — build feature_inventory.json (config or TRAINGEN_OPENAPI_URL/TRAINGEN_FRONTEND_APP)
 	python -m traingen.discovery.extract
 
+synthesize: ## Layer 2 — drafts.yaml from the inventory (needs anthropic + ANTHROPIC_API_KEY)
+	python -m traingen.discovery.synthesize_cli
+
 test:      ## run all offline tests
 	python -m tests.test_timing
 	python -m tests.test_extract
+	python -m tests.test_synthesize
 
 clean:
 	rm -rf out/*

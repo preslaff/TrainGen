@@ -116,25 +116,36 @@ intro/outro.
 
 ---
 
-## v0.4 — full discovery (scale the library)
+## v0.4 — full discovery (scale the library) — IN PROGRESS
 
 **Deliverable:** discovery end to end — inventory → drafts → live-verified drafts → human
 approval → SSOT — producing many scenarios instead of one hand-written flow.
 
-**Work:**
-- `traingen/discovery/synthesize.py`: Layer 2 per `SYNTHESIZER.md` — temperature-0,
-  batched per resource group, schema-gated; consumes the Extract-spike inventory; emits
-  provenance-tagged `drafts.yaml`. Never invents selectors; never writes `crawl`.
+**Done — Layer 2 Synthesize:**
+- `traingen/discovery/synthesize.py` + `llm.py` + `synthesize_cli.py`: per `SYNTHESIZER.md`
+  — batched per resource group, schema-gated (structured `output_config.format` JSON, not
+  raw YAML), regenerate-on-failure. Consumes the inventory; emits provenance-tagged
+  `out/discovery/drafts.yaml`. Semantic validation enforces: every locator binds to an
+  inventoried control or is `unbound` + open_question; provenance never says `crawl`;
+  4–9 steps; single role; scenario provenance = weakest step. Per-group cache on the
+  group's slice hash. Pluggable Claude backend (`claude-opus-4-8`); `make synthesize`;
+  fixture tests in `tests/test_synthesize.py` pass offline via a stub backend.
+  Note: "temperature 0" in SYNTHESIZER.md predates Opus 4.8 (which removes `temperature`);
+  determinism is approached via `effort` + the self-check instead.
+
+**Remaining for v0.4:**
 - `traingen/discovery/verify.py`: Layer 3 caged crawl — role-scoped, bounded,
   write-restricted to `drafts.yaml`; confirms locators, expands runtime sub-steps,
-  promotes provenance, resolves/escalates `open_questions`.
+  promotes provenance, resolves/escalates `open_questions`. (First real Playwright use.)
 - A merge/approve tool: strips draft-only metadata (`DESIGN.md` §5 drop-list), keeps
   `needs_seed_record`/`destructive`, merges approved drafts into `manifest/scenarios.yaml`.
 - `traingen/discover.py`: thin orchestrator over extract→synthesize→verify; CLI
   `python run.py --discover --role admin`.
+- Refine Layer 1 `resource_hint` for nested APIs (`/admin/leads` → `leads`, not `admin`) so
+  synthesis groups are feature-sized, not one giant `admin` group.
 
-**Files:** `traingen/discovery/{synthesize,verify}.py`, `traingen/discover.py`, the merge
-tool, `run.py` (`--discover`); output to `out/discovery/drafts.yaml`.
+**Files:** `traingen/discovery/{synthesize,llm,synthesize_cli}.py` (done);
+`{verify}.py`, `traingen/discover.py`, the merge tool, `run.py` (`--discover`) (remaining).
 **Proves:** the library scales from sources with a strong human-review draft.
 **Depends on:** the Extract spike (inventory) + v0.3 (so generated scenarios produce
 shippable videos).

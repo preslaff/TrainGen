@@ -12,6 +12,7 @@ import yaml
 from .. import config as prod_config
 
 EXTRACTOR_VERSION = "0.1.0"
+SYNTHESIZER_VERSION = "0.1.0"
 
 # Heuristic prefix -> role mapping (DESIGN.md R5 / FEATURE_INVENTORY §4.3 role_gate).
 # Parsing middleware.ts directly is a later refinement; this is the first-cut stand-in.
@@ -35,6 +36,11 @@ class DiscoveryConfig:
     role_gates: list = field(default_factory=lambda: list(DEFAULT_ROLE_GATES))
     locale_params: list = field(default_factory=lambda: list(DEFAULT_LOCALE_PARAMS))
     extractor_version: str = EXTRACTOR_VERSION
+    # Layer 2 (synthesize)
+    synth_model: str = "claude-opus-4-8"
+    synth_effort: str = "medium"
+    synth_max_retries: int = 2
+    synthesizer_version: str = SYNTHESIZER_VERSION
 
 
 def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
@@ -53,4 +59,6 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
         ga4_window_days=int(ga4.get("window_days", 30)),
         role_gates=d.get("role_gates") or list(DEFAULT_ROLE_GATES),
         locale_params=d.get("locale_params") or list(DEFAULT_LOCALE_PARAMS),
+        synth_model=os.environ.get("TRAINGEN_SYNTH_MODEL", d.get("synth_model", "claude-opus-4-8")),
+        synth_effort=os.environ.get("TRAINGEN_SYNTH_EFFORT", d.get("synth_effort", "medium")),
     )

@@ -7,9 +7,16 @@ the LLM, or Playwright.
 from __future__ import annotations
 
 import sys
+import tempfile
+from pathlib import Path
 
+from traingen import config as prod_config
 from traingen.discovery import discover
 from traingen.discovery.config import DiscoveryConfig
+
+# Redirect all OUT-based writes to a throwaway dir so tests never clobber real artifacts
+# (discover.run writes feature_inventory.json).
+prod_config.OUT = Path(tempfile.mkdtemp())
 
 
 def test_orchestration_role_filter_and_skip_verify(monkeypatch=None):

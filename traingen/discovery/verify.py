@@ -123,6 +123,7 @@ def verify(drafts_doc: dict, cfg=None, make_driver=None) -> dict:
     run["verified"] = True
     run["verify_roles"] = sorted(by_role)
     out = prod_config.OUT / "discovery" / "drafts.verified.yaml"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(yaml.safe_dump(drafts_doc, allow_unicode=True, sort_keys=False),
                    encoding="utf-8")
     return drafts_doc

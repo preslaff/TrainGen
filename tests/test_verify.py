@@ -8,9 +8,15 @@ from __future__ import annotations
 
 import copy
 import sys
+import tempfile
+from pathlib import Path
 
+from traingen import config as prod_config
 from traingen.discovery import config as dconfig
 from traingen.discovery import verify
+
+# Redirect OUT so verify.verify's drafts.verified.yaml write doesn't clobber real artifacts.
+prod_config.OUT = Path(tempfile.mkdtemp())
 
 
 def _draft(scenario_id, role, steps, destructive=False):

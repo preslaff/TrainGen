@@ -11,11 +11,17 @@ import shutil
 import sys
 from pathlib import Path
 
+import tempfile
+from pathlib import Path
+
 from traingen import config as prod_config
 from traingen.discovery import config as dconfig
 from traingen.discovery import synthesize
 from traingen.discovery.config import DiscoveryConfig
 from traingen.discovery.extract import build_inventory
+
+# Redirect OUT so synthesize.run's drafts.yaml / cache writes don't clobber real artifacts.
+prod_config.OUT = Path(tempfile.mkdtemp())
 
 FIX = Path(__file__).parent / "fixtures"
 SPEC, APP = FIX / "openapi_partners.json", FIX / "next_app" / "app"

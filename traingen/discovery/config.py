@@ -43,6 +43,8 @@ class DiscoveryConfig:
     synth_effort: str = "medium"
     synth_max_retries: int = 2
     synthesizer_version: str = SYNTHESIZER_VERSION
+    # Layer 3 (verify)
+    verify_max_steps: int = 12          # per-scenario crawl ceiling (the cage)
 
 
 def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:

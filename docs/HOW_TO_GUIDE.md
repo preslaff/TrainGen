@@ -180,9 +180,9 @@ Everything lands under `out/<scenario_id>/<lang>/`:
 
 These are designed and will get their own sections here as they ship:
 
-- **Discovery Layer 3 (Verify) + human-gate merge** — verify drafts with a caged crawl and
-  merge approved scenarios into the SSOT (`docs/DISCOVERY.md`). **[planned v0.4]**. Layers 1
-  (inventory) and 2 (synthesize) are available — see Sections 10–11.
+- **Human-gate merge + agentic sub-step expansion** — merge verified drafts into the SSOT,
+  and expand runtime-only sub-steps a crawl reveals (`docs/DISCOVERY.md`). **[planned v0.4]**.
+  Layers 1 (inventory), 2 (synthesize), and 3 (verify) are available — see Sections 10–12.
 - **Overlays** — animated cursor, highlight ring, zoom. **[planned v0.2]**
 - **Subtitles** — soft VTT sidecar per language via aeneas. **[planned v0.3]**
 - **Intro/outro** — branded bookends in compose. **[planned v0.3]**
@@ -238,6 +238,29 @@ Output is `out/discovery/drafts.yaml` (a `discovery_run` header + provenance-tag
 `manifest/scenarios.yaml` (the Layer 3 verify + merge step, v0.4). The command prints any
 groups that failed validation after retries. Cost scales with the number of resource
 groups, so review one group before running the whole inventory.
+
+## 12. Verify drafts against the running app — discovery Layer 3 **[available]**
+
+Layer 3 is the caged crawl: for each draft it opens the running app (one browser context
+per role), checks that each step's locator actually resolves in the live DOM, and promotes
+provenance (`code:route+endpoint` → `route+endpoint+crawl`, …). Unresolved or ambiguous
+locators become `open_questions`; unconfirmed `code:endpoint`/`inferred` steps are marked
+`drop_candidate`. It is **read-mostly** (advances the flow on the seeded demo tenant, never
+runs a destructive final step), **bounded** (a per-scenario step ceiling), and
+**write-restricted** — it emits `out/discovery/drafts.verified.yaml` and never the SSOT.
+
+Needs Playwright + a running, seeded demo tenant (set `TRAINGEN_BASE_URL` and a `login:`
+block; reset the tenant first):
+
+```bash
+make install            # Playwright + Chromium, if not already
+make verify             # reads out/discovery/drafts.yaml -> drafts.verified.yaml
+```
+
+The command lists scenarios that `need review` (unresolved/ambiguous/truncated). A human
+then approves/trims/merges the verified drafts into `manifest/scenarios.yaml` (the merge
+tool is the remaining v0.4 piece). First cut confirms and flags; agentic expansion of
+runtime-only sub-steps (modal/wizard pages) is the follow-up.
 
 ## Maintenance note
 

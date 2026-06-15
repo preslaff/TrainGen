@@ -19,10 +19,14 @@ extract:   ## Layer 1 — build feature_inventory.json (config or TRAINGEN_OPENA
 synthesize: ## Layer 2 — drafts.yaml from the inventory (needs anthropic + ANTHROPIC_API_KEY)
 	python -m traingen.discovery.synthesize_cli
 
+verify:    ## Layer 3 — verify drafts against the running app (needs Playwright + demo tenant)
+	python -m traingen.discovery.verify_cli
+
 test:      ## run all offline tests
 	python -m tests.test_timing
 	python -m tests.test_extract
 	python -m tests.test_synthesize
+	python -m tests.test_verify
 
 clean:
 	rm -rf out/*

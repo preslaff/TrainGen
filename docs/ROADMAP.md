@@ -133,12 +133,24 @@ approval → SSOT — producing many scenarios instead of one hand-written flow.
   Note: "temperature 0" in SYNTHESIZER.md predates Opus 4.8 (which removes `temperature`);
   determinism is approached via `effort` + the self-check instead.
 
+**Done — Layer 3 Verify (cage logic):**
+- `traingen/discovery/verify.py` + `verify_cli.py`: role-scoped (one browser context per
+  role), step-bounded (`verify_max_steps`, default 12), write-restricted to
+  `out/discovery/drafts.verified.yaml`. Per step it resolves the code-derived locator
+  against the live DOM and promotes provenance (`code:route+endpoint` →
+  `route+endpoint+crawl`, etc.); unresolved/ambiguous locators are flagged as
+  `open_questions`, and unconfirmed `code:endpoint`/`inferred` steps are marked
+  `drop_candidate`. Scenario provenance recomputed as the weakest step (risk floor).
+  Read-mostly: advances the flow on the demo tenant but never runs a destructive final
+  step. Cage logic is stub-tested offline (`tests/test_verify.py`); the Playwright driver
+  reuses `record.py` (resolve_locator/do_action/login) and is unrun without a live app.
+
 **Remaining for v0.4:**
-- `traingen/discovery/verify.py`: Layer 3 caged crawl — role-scoped, bounded,
-  write-restricted to `drafts.yaml`; confirms locators, expands runtime sub-steps,
-  promotes provenance, resolves/escalates `open_questions`. (First real Playwright use.)
+- Agentic EXPANSION of runtime-only sub-steps (modal stages / wizard pages no locator
+  predicts) — the genuinely agentic follow-up; first cut confirms/flags only.
 - A merge/approve tool: strips draft-only metadata (`DESIGN.md` §5 drop-list), keeps
-  `needs_seed_record`/`destructive`, merges approved drafts into `manifest/scenarios.yaml`.
+  `needs_seed_record`/`destructive`, merges approved verified drafts into
+  `manifest/scenarios.yaml` (the human gate).
 - `traingen/discover.py`: thin orchestrator over extract→synthesize→verify; CLI
   `python run.py --discover --role admin`.
 

@@ -160,9 +160,11 @@ def verify_scenario(scenario: dict, driver, max_steps: int, matcher=None, expand
     driver.goto(scenario["entry_route"])
     steps = scenario.get("steps", [])
     truncated = len(steps) > max_steps
+    crawled = steps[:max_steps]
+    last_step = crawled[-1] if crawled else None   # never executed — its locator is only confirmed
     confirmed, bound_by_crawl, unresolved, ambiguous = 0, [], [], []
 
-    for st in steps[:max_steps]:
+    for st in crawled:
         status, matches = driver.resolve(st.get("locator", {}))
         pre = st.get("provenance", "inferred")
         if status == "confirmed":
@@ -170,7 +172,7 @@ def verify_scenario(scenario: dict, driver, max_steps: int, matcher=None, expand
             st["provenance"] = PROMOTE.get(pre, "crawl-verified")
             st["bound_via"] = st.get("bound_via") if st.get("bound_via") != "unbound" else "crawl"
             confirmed += 1
-            if not (scenario.get("destructive") and st is steps[-1]):
+            if st is not last_step:          # read-mostly: never execute the final (mutating) action
                 driver.advance(st)
             continue
 
@@ -184,7 +186,7 @@ def verify_scenario(scenario: dict, driver, max_steps: int, matcher=None, expand
             st.pop("drop_candidate", None)
             bound_by_crawl.append(st["id"])
             confirmed += 1
-            if not (scenario.get("destructive") and st is steps[-1]):
+            if st is not last_step:          # read-mostly: never execute the final (mutating) action
                 driver.advance(st)
             continue
 

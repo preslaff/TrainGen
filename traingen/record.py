@@ -19,6 +19,8 @@ def resolve_locator(page, loc: dict):
     """Semantic locators only — never raw CSS (BLUEPRINT §3)."""
     if "testid" in loc:
         return page.get_by_test_id(loc["testid"])
+    if "placeholder" in loc:
+        return page.get_by_placeholder(loc["placeholder"])
     if "label" in loc:
         return page.get_by_label(loc["label"])
     return page.get_by_role(loc["role"], name=loc["name"])
@@ -43,29 +45,35 @@ def do_action(page, el, step: dict) -> None:
 
 
 def login(page, role: str, cfg: config.Config) -> None:
-    """Authenticate as the seeded demo user for `role` against the staging demo
-    tenant (BLUEPRINT §11). Configure via a `login:` block in the manifest defaults:
+    """Authenticate as `role` against the seeded demo tenant (BLUEPRINT §11). Per-role
+    config lives in the manifest defaults `login:` block; secrets come from env vars and
+    are NEVER stored in the git-tracked manifest. Each field's locator is semantic
+    (testid/placeholder/label/role+name):
 
         login:
-          route: /login
-          user_label: "Email"
-          pass_label: "Password"
-          submit_name: "Sign in"
-          users: { admin: {username: ..., password: ...}, member: {...} }
+          admin:
+            route: "/admin/en/login"
+            fields:
+              - { locator: { placeholder: "Enter admin key" }, from_env: TRAINGEN_ADMIN_PASSWORD }
+            submit: { role: button, name: "Sign In" }
 
-    If no login block is present this is a no-op and recording starts at entry_route.
-    Never record against production.
+    No config or missing secret for this role => no-op (starts unauthenticated). Never prod.
     """
-    lc = cfg.login
+    import os
+    lc = (cfg.login or {}).get(role)
     if not lc:
         return
     page.goto(lc["route"])
     page.wait_for_load_state("networkidle")
-    user = lc["users"][role]
-    page.get_by_label(lc["user_label"]).fill(user["username"])
-    page.get_by_label(lc["pass_label"]).fill(user["password"])
-    page.get_by_role("button", name=lc["submit_name"]).click()
-    page.wait_for_load_state("networkidle")
+    for f in lc.get("fields", []):
+        value = os.environ.get(f["from_env"]) if f.get("from_env") else f.get("value", "")
+        if not value:
+            return  # missing credential — bail unauthenticated rather than submit a blank form
+        resolve_locator(page, f["locator"]).fill(value)
+    submit = lc.get("submit")
+    if submit:
+        resolve_locator(page, submit).click()
+        page.wait_for_load_state("networkidle")
 
 
 def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:

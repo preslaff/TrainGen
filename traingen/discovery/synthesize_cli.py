@@ -21,11 +21,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="TrainGen Layer 2 — synthesize draft scenarios")
     ap.add_argument("--inventory",
                     default=str(prod_config.OUT / "discovery" / "feature_inventory.json"))
+    ap.add_argument("--resource", action="append",
+                    help="synthesize only this resource group (repeatable; default all)")
     args = ap.parse_args()
 
     inv = json.loads(Path(args.inventory).read_text(encoding="utf-8"))
     cfg = dconfig.load_discovery_config()
-    doc = synthesize.run(inv, cfg=cfg)
+    doc = synthesize.run(inv, cfg=cfg, resources=args.resource)
 
     run = doc["discovery_run"]
     print(f"drafts: {len(doc['drafts'])} scenarios across {run['groups']} groups "

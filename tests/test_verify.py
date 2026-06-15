@@ -110,10 +110,19 @@ def test_destructive_final_step_not_advanced():
     print("OK  read-mostly: destructive final step confirmed but not executed")
 
 
+def test_live_route_reinserts_locale():
+    assert verify.live_route("/admin/announcements", "en") == "/admin/en/announcements"
+    assert verify.live_route("/member/dashboard/bookings", "en") == "/member/en/dashboard/bookings"
+    assert verify.live_route("/discover", "en") == "/en/discover"            # public
+    assert verify.live_route("/admin/x", "") == "/admin/x"                   # no locale -> unchanged
+    print("OK  live_route: locale re-inserted after role scope (and at root for public)")
+
+
 def main() -> int:
     test_promotion_and_flagging()
     test_role_grouping_and_ceiling()
     test_destructive_final_step_not_advanced()
+    test_live_route_reinserts_locale()
     print("\nall verify tests passed")
     return 0
 

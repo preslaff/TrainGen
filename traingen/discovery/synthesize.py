@@ -225,7 +225,7 @@ def synthesize_group(group: dict, cfg, backend) -> dict:
     return {"drafts": result.get("drafts", []), "errors": last_errs}
 
 
-def run(inventory: dict, cfg=None, backend=None) -> dict:
+def run(inventory: dict, cfg=None, backend=None, resources=None) -> dict:
     cfg = cfg or dconfig.load_discovery_config()
     backend = backend or get_backend(cfg)
     out_dir = prod_config.OUT / "discovery"
@@ -234,9 +234,12 @@ def run(inventory: dict, cfg=None, backend=None) -> dict:
 
     inv_hash = inventory.get("meta", {}).get("inventory_hash", "")
     groups = group_by_resource(inventory)
+    only = set(resources) if resources else None   # synthesize just these groups (cheap trial)
     all_drafts, failures = [], {}
 
     for res, group in sorted(groups.items()):
+        if only is not None and res not in only:
+            continue
         if not group["endpoints"]:           # routes with no API backing — skip (nav-only)
             continue
         key = digest(_group_slice(group), cfg.synthesizer_version, PROMPT_VERSION,

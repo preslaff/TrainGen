@@ -45,6 +45,8 @@ class DiscoveryConfig:
     synthesizer_version: str = SYNTHESIZER_VERSION
     # Layer 3 (verify)
     verify_max_steps: int = 12          # per-scenario crawl ceiling (the cage)
+    live_locale: str = "en"             # extract strips [locale]; verify re-inserts it for live URLs
+    live_scopes: list = field(default_factory=lambda: ["admin", "member"])
 
 
 def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
@@ -66,4 +68,6 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
         scope_segments=d.get("scope_segments") or list(DEFAULT_SCOPE_SEGMENTS),
         synth_model=os.environ.get("TRAINGEN_SYNTH_MODEL", d.get("synth_model", "claude-opus-4-8")),
         synth_effort=os.environ.get("TRAINGEN_SYNTH_EFFORT", d.get("synth_effort", "medium")),
+        live_locale=os.environ.get("TRAINGEN_LIVE_LOCALE", d.get("live_locale", "en")),
+        live_scopes=d.get("live_scopes") or ["admin", "member"],
     )

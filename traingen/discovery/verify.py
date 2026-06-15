@@ -48,6 +48,17 @@ def _weakest(provenances: list) -> str:
     return min(provenances, key=lambda p: _RANK.get(p, 0)) if provenances else "inventory-only"
 
 
+def live_route(route: str, locale: str, scopes=("admin", "member")) -> str:
+    """Re-insert the i18n locale that extract stripped, matching the app's layout:
+    /admin/announcements -> /admin/en/announcements ; /discover -> /en/discover."""
+    if not locale:
+        return route
+    parts = [p for p in route.strip("/").split("/") if p]
+    if parts and parts[0] in scopes:
+        return "/" + "/".join([parts[0], locale, *parts[1:]])
+    return "/" + "/".join([locale, *parts])
+
+
 def verify_scenario(scenario: dict, driver, max_steps: int) -> dict:
     """Confirm each step's locator against the live DOM via `driver`; promote provenance
     and flag failures. Mutates and returns the scenario dict."""
@@ -123,12 +134,13 @@ class PlaywrightDriver:
     """Drives one role's browser context against the seeded demo tenant. Reuses record.py's
     semantic locator resolution and login so verification and recording agree on selectors."""
 
-    def __init__(self, role: str, prod_cfg):
+    def __init__(self, role: str, prod_cfg, locale: str = "en", scopes=("admin", "member")):
         from playwright.sync_api import sync_playwright
 
         from .. import record as rec  # reuse resolve_locator / do_action / login
         self._rec = rec
         self._cfg = prod_cfg
+        self._locale, self._scopes = locale, scopes
         self._pw = sync_playwright().start()
         self._browser = self._pw.chromium.launch(headless=prod_cfg.headless)
         self._ctx = self._browser.new_context(base_url=prod_cfg.base_url, viewport=prod_cfg.viewport)
@@ -136,7 +148,7 @@ class PlaywrightDriver:
         rec.login(self.page, role, prod_cfg)
 
     def goto(self, route: str):
-        self.page.goto(route)
+        self.page.goto(live_route(route, self._locale, self._scopes))
         self.page.wait_for_load_state("networkidle")
 
     def resolve(self, locator: dict):
@@ -162,7 +174,8 @@ class PlaywrightDriver:
 
 def _playwright_driver_factory(dcfg):
     prod_cfg = prod_config.load_config()
-    return lambda role: PlaywrightDriver(role, prod_cfg)
+    return lambda role: PlaywrightDriver(role, prod_cfg,
+                                         locale=dcfg.live_locale, scopes=tuple(dcfg.live_scopes))
 
 
 def run_from_file(drafts_path=None, cfg=None) -> dict:

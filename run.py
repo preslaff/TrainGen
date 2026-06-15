@@ -31,7 +31,20 @@ def main() -> None:
     ap.add_argument("--scenario", help="scenario_id from the manifest")
     ap.add_argument("--all", action="store_true", help="run every scenario")
     ap.add_argument("--lang", default="bg", help="comma-separated, e.g. bg,en")
+    ap.add_argument("--discover", action="store_true",
+                    help="run discovery (extract→synthesize→verify) instead of the pipeline")
+    ap.add_argument("--role", action="append", help="restrict discovery to role(s) (repeatable)")
+    ap.add_argument("--skip-verify", action="store_true", help="discovery without the live crawl")
     args = ap.parse_args()
+
+    if args.discover:
+        from traingen.discovery import discover
+        summary = discover.run(roles=args.role, skip_verify=args.skip_verify)
+        print(f"discovery: {summary['endpoints']} endpoints, {summary['routes']} routes, "
+              f"{summary['drafts']} drafts (verified={summary['verified']}, roles={summary['roles']})")
+        print("review out/discovery/drafts.verified.yaml, then: "
+              "python -m traingen.discovery.merge_cli --all --apply")
+        return
 
     if not args.all and not args.scenario:
         ap.error("pass --scenario <id> or --all")

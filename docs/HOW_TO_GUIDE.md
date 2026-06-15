@@ -180,9 +180,10 @@ Everything lands under `out/<scenario_id>/<lang>/`:
 
 These are designed and will get their own sections here as they ship:
 
-- **Human-gate merge + agentic sub-step expansion** — merge verified drafts into the SSOT,
-  and expand runtime-only sub-steps a crawl reveals (`docs/DISCOVERY.md`). **[planned v0.4]**.
-  Layers 1 (inventory), 2 (synthesize), and 3 (verify) are available — see Sections 10–12.
+- **Agentic sub-step expansion** — expand runtime-only sub-steps a crawl reveals (modal
+  stages, wizard pages no locator predicts) (`docs/DISCOVERY.md`). **[planned v0.4]**. The
+  full discovery chain (extract → synthesize → verify → human-gate merge) is otherwise
+  available — see Sections 10–14.
 - **Overlays** — animated cursor, highlight ring, zoom. **[planned v0.2]**
 - **Subtitles** — soft VTT sidecar per language via aeneas. **[planned v0.3]**
 - **Intro/outro** — branded bookends in compose. **[planned v0.3]**
@@ -261,6 +262,37 @@ The command lists scenarios that `need review` (unresolved/ambiguous/truncated).
 then approves/trims/merges the verified drafts into `manifest/scenarios.yaml` (the merge
 tool is the remaining v0.4 piece). First cut confirms and flags; agentic expansion of
 runtime-only sub-steps (modal/wizard pages) is the follow-up.
+
+## 13. Merge verified drafts into the SSOT — the human gate **[available]**
+
+Discovery never auto-commits. When you're happy with `drafts.verified.yaml`, merge selected
+scenarios into `manifest/scenarios.yaml`:
+
+```bash
+make merge                                                   # dry-run: shows what would merge
+python -m traingen.discovery.merge_cli --all --apply         # write the SSOT
+python -m traingen.discovery.merge_cli --scenario add-partner-profile --apply
+```
+
+The merge strips all draft-only metadata (provenance, bound_via, usage_rank, source_refs,
+open_questions, verification) down to the lean SSOT schema, keeping `needs_seed_record`/
+`destructive`. It upserts by `scenario_id`, **preserves the `defaults:` header and its
+comments** (only the `scenarios:` block is regenerated), and skips drafts still flagged
+`needs_review` or carrying `drop_candidate` steps unless you pass `--include-unverified`.
+Dry-run is the default; `--apply` writes.
+
+## 14. Run discovery end to end **[available]**
+
+```bash
+python run.py --discover                 # extract → synthesize → verify
+python run.py --discover --role admin    # restrict to admin-gated scenarios
+python run.py --discover --skip-verify   # stop after synthesize (no live crawl)
+# then review out/discovery/drafts.verified.yaml and run the merge (Section 13)
+```
+
+Needs the inputs each layer needs (OpenAPI URL + Next.js path for extract; Anthropic key
+for synthesize; Playwright + demo tenant for verify). It stops at the verified drafts and
+points you at the explicit merge step.
 
 ## Maintenance note
 

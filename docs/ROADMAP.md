@@ -145,14 +145,23 @@ approval → SSOT — producing many scenarios instead of one hand-written flow.
   step. Cage logic is stub-tested offline (`tests/test_verify.py`); the Playwright driver
   reuses `record.py` (resolve_locator/do_action/login) and is unrun without a live app.
 
+**Done — human gate + orchestrator:**
+- `traingen/discovery/merge.py` + `merge_cli.py`: strips draft-only metadata (DESIGN §5
+  drop-list), keeps the lean SSOT schema + `needs_seed_record`/`destructive`, upserts
+  selected scenarios into `manifest/scenarios.yaml` by id. Dry-run by default; `--apply`
+  preserves the `defaults:` header/comments (regenerates only the `scenarios:` block);
+  skips `needs_review`/`drop_candidate` drafts unless `--include-unverified`. `make merge`.
+- `traingen/discovery/discover.py` + `run.py --discover [--role R] [--skip-verify]`:
+  chains extract → synthesize → verify, stops at `drafts.verified.yaml`, points the user
+  at the explicit merge step (never auto-commits). `make discover`.
+- Stub/monkeypatched offline tests: `tests/test_merge.py`, `tests/test_discover.py`.
+
 **Remaining for v0.4:**
 - Agentic EXPANSION of runtime-only sub-steps (modal stages / wizard pages no locator
-  predicts) — the genuinely agentic follow-up; first cut confirms/flags only.
-- A merge/approve tool: strips draft-only metadata (`DESIGN.md` §5 drop-list), keeps
-  `needs_seed_record`/`destructive`, merges approved verified drafts into
-  `manifest/scenarios.yaml` (the human gate).
-- `traingen/discover.py`: thin orchestrator over extract→synthesize→verify; CLI
-  `python run.py --discover --role admin`.
+  predicts) — the genuinely agentic follow-up; the verify cut confirms/flags only.
+
+v0.4 now runs end to end as code (extract → synthesize → verify → human-gate merge);
+the live stages (synthesize, verify) await an API key and a running demo tenant.
 
 **Done — `resource_hint` refinement:** `discovery/resource.py` strips a configurable scope
 set (`api`, `v{n}`, `admin`, `member`, `me`, `dashboard`, …) and takes the first remaining

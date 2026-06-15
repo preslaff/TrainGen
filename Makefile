@@ -22,11 +22,19 @@ synthesize: ## Layer 2 — drafts.yaml from the inventory (needs anthropic + ANT
 verify:    ## Layer 3 — verify drafts against the running app (needs Playwright + demo tenant)
 	python -m traingen.discovery.verify_cli
 
+discover:  ## run discovery end to end: extract → synthesize → verify
+	python run.py --discover
+
+merge:     ## human gate — dry-run merge of verified drafts into the SSOT (add --apply to write)
+	python -m traingen.discovery.merge_cli --all
+
 test:      ## run all offline tests
 	python -m tests.test_timing
 	python -m tests.test_extract
 	python -m tests.test_synthesize
 	python -m tests.test_verify
+	python -m tests.test_merge
+	python -m tests.test_discover
 
 clean:
 	rm -rf out/*

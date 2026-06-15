@@ -51,21 +51,27 @@ start to finish, producing a synced `final.mp4`.
 
 ---
 
-## Extract spike (parallel) — Layer 1 only
+## Extract spike (parallel) — Layer 1 only — IN PROGRESS
 
 **Deliverable:** `feature_inventory.json` + a `testid_gaps[]` list handed to the platform
 team. Layer 1 of discovery, standalone.
 
-**Work:**
-- `traingen/discovery/extract.py`: parse the FastAPI `openapi.json` (endpoints, fields,
-  security, response states), statically parse the Next.js `app/` tree (routes, segments,
-  dynamic params, layout chain, `middleware.ts` guards, form controls, `data-testid`
-  presence/absence, i18n catalogs), and read GA4 usage. Emit the inventory per the
-  `FEATURE_INVENTORY.md` contract, including `inventory_hash` and `testid_gaps[]`.
-- Add the discovery config keys (`DESIGN.md` §6).
+**Done (first cut):**
+- `traingen/discovery/{openapi,nextjs,extract,config}.py`: parse the FastAPI `openapi.json`
+  (endpoints, fields, security, response states — exact) and statically parse the Next.js
+  `app/` tree (routes, segments, dynamic params, layout chain, controls + `data-testid`
+  presence/absence — heuristic). Emits the inventory per the `FEATURE_INVENTORY.md`
+  contract with `inventory_hash` and aggregated `testid_gaps[]`. Discovery config keys
+  added (`DESIGN.md` §6); `make extract` / `make test`; fixture tests in
+  `tests/test_extract.py` pass.
 
-**Files:** `traingen/discovery/__init__.py`, `traingen/discovery/extract.py`;
-output to `out/discovery/feature_inventory.json`.
+**Remaining for full Layer 1:**
+- GA4 `usage[]` weighting (needs API credentials).
+- i18n catalog mirroring (`i18n.strings`).
+- `middleware.ts` parsing for `role_gate` (currently a prefix heuristic).
+- A real TSX parse / Layer 3 crawl to harden control extraction beyond the regex scan.
+
+**Files:** `traingen/discovery/*.py`; output to `out/discovery/feature_inventory.json`.
 **Proves:** deterministic enumeration works; surfaces the test-id ask list early.
 **Depends on:** read access to the two repos + the OpenAPI spec URL + GA4 property.
 **Note:** must stay deterministic (no LLM, no live crawl) — it is the CI diff anchor.

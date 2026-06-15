@@ -1,0 +1,52 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Tourism API", "version": "1.0.0" },
+  "paths": {
+    "/partners": {
+      "get": {
+        "operationId": "list_partners", "tags": ["partners"], "summary": "List partners",
+        "responses": { "200": { "description": "ok" } }
+      },
+      "post": {
+        "operationId": "create_partner", "tags": ["partners"],
+        "summary": "Create a partner profile",
+        "security": [{ "OAuth2": ["admin"] }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PartnerCreate" } } }
+        },
+        "responses": { "201": { "description": "created" }, "422": { "description": "validation error" } }
+      }
+    },
+    "/partners/{id}": {
+      "get": {
+        "operationId": "get_partner", "tags": ["partners"], "summary": "Get a partner",
+        "responses": { "200": { "description": "ok" }, "404": { "description": "not found" } }
+      },
+      "delete": {
+        "operationId": "delete_partner", "tags": ["partners"], "summary": "Delete a partner",
+        "security": [{ "OAuth2": ["admin"] }],
+        "responses": { "204": { "description": "no content" } }
+      }
+    },
+    "/partners/{id}/publish": {
+      "post": {
+        "operationId": "publish_partner", "tags": ["partners"], "summary": "Publish a partner",
+        "security": [{ "OAuth2": ["admin"] }],
+        "responses": { "200": { "description": "ok" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PartnerCreate": {
+        "type": "object",
+        "required": ["business_name", "category", "region"],
+        "properties": {
+          "business_name": { "type": "string" },
+          "category": { "type": "string", "enum": ["accommodation", "restaurant", "activity"] },
+          "region": { "type": "string" }
+        }
+      }
+    }
+  }
+}

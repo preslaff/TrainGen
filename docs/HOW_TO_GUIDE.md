@@ -180,9 +180,9 @@ Everything lands under `out/<scenario_id>/<lang>/`:
 
 These are designed and will get their own sections here as they ship:
 
-- **Discovery** — auto-draft scenarios from a target app's FastAPI + Next.js repos
-  (`docs/DISCOVERY.md`). **[planned v0.4]**; Layer 1 inventory + test-id gap list is an
-  earlier spike.
+- **Discovery (Layers 2–3)** — synthesize draft scenarios from the inventory and verify
+  them with a caged crawl (`docs/DISCOVERY.md`). **[planned v0.4]**. Layer 1 (the feature
+  inventory) is already available — see Section 10.
 - **Overlays** — animated cursor, highlight ring, zoom. **[planned v0.2]**
 - **Subtitles** — soft VTT sidecar per language via aeneas. **[planned v0.3]**
 - **Intro/outro** — branded bookends in compose. **[planned v0.3]**
@@ -190,7 +190,30 @@ These are designed and will get their own sections here as they ship:
 
 ---
 
-## Maintenance note
+## 10. Generate the feature inventory — discovery Layer 1 **[available]**
+
+Layer 1 reads the target app's **OpenAPI spec** and **Next.js `app/` tree** and emits a
+deterministic `feature_inventory.json` — the task/route/control facts plus a
+`testid_gaps[]` list to hand the platform team. No LLM, no live crawl.
+
+Configure either via the manifest `defaults.discovery:` block (see `manifest/scenarios.yaml`)
+or env/flags, then:
+
+```bash
+# via env
+TRAINGEN_OPENAPI_URL=https://api.example.com/openapi.json \
+TRAINGEN_FRONTEND_APP=../frontend/app \
+make extract
+
+# or directly, overriding config
+python -m traingen.discovery.extract --spec <url|path> --app <next-app-dir>
+```
+
+Output goes to `out/discovery/feature_inventory.json` and the command prints the
+endpoint/route/gap counts and the `inventory_hash` (the CI diff key — same commits yield
+the same hash). Control extraction is a heuristic regex scan of each page file (it does
+not follow imported components), so treat `testid_gaps` as a strong signal to confirm, not
+gospel. Verify offline with `make test`.
 
 When you implement a ROADMAP milestone, update the matching section here: flip its tag
 from **[planned]** to **[available]**, add the new commands/flags, and move anything from

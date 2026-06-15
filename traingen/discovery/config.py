@@ -1,0 +1,49 @@
+"""Discovery configuration — namespaced separately from the production Config
+(DESIGN.md R5). Sourced from a `discovery:` block under the manifest `defaults:`,
+with environment overrides for the two values that change per run."""
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import yaml
+
+from .. import config as prod_config
+
+EXTRACTOR_VERSION = "0.1.0"
+
+# Heuristic prefix -> role mapping (DESIGN.md R5 / FEATURE_INVENTORY §4.3 role_gate).
+# Parsing middleware.ts directly is a later refinement; this is the first-cut stand-in.
+DEFAULT_ROLE_GATES = [{"prefix": "/admin", "role": "admin"}]
+
+
+@dataclass
+class DiscoveryConfig:
+    spec_url: str | None = None          # OpenAPI spec URL or local path
+    frontend_app_dir: str | None = None  # path to the Next.js app/ directory
+    frontend_repo: str | None = None
+    frontend_commit: str | None = None
+    api_commit: str | None = None
+    ga4_property: str | None = None
+    ga4_window_days: int = 30
+    role_gates: list = field(default_factory=lambda: list(DEFAULT_ROLE_GATES))
+    extractor_version: str = EXTRACTOR_VERSION
+
+
+def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    d = ((data.get("defaults") or {}).get("discovery") or {})
+    api = d.get("api") or {}
+    fe = d.get("frontend") or {}
+    ga4 = d.get("ga4") or {}
+    return DiscoveryConfig(
+        spec_url=os.environ.get("TRAINGEN_OPENAPI_URL", api.get("spec_url")),
+        frontend_app_dir=os.environ.get("TRAINGEN_FRONTEND_APP", fe.get("app_dir")),
+        frontend_repo=fe.get("repo"),
+        frontend_commit=fe.get("commit"),
+        api_commit=api.get("commit"),
+        ga4_property=ga4.get("property"),
+        ga4_window_days=int(ga4.get("window_days", 30)),
+        role_gates=d.get("role_gates") or list(DEFAULT_ROLE_GATES),
+    )

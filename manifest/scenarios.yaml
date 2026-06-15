@@ -14,6 +14,15 @@ defaults:
     bg: "voice_bg_calm"
     en: "voice_en_calm"
 
+  # Discovery (Layer 1 Extract) config — namespaced, discovery-only (DESIGN.md R5/§6).
+  # Fill in to run `make extract`; env overrides: TRAINGEN_OPENAPI_URL, TRAINGEN_FRONTEND_APP.
+  # discovery:
+  #   api:      { spec_url: "https://tourism-api.example.com/openapi.json", commit: "" }
+  #   frontend: { repo: "wonderful-bg-web", app_dir: "../wonderful-bg-web/app", commit: "" }
+  #   ga4:      { property: "properties/XXXX", window_days: 30 }   # used in a later cut
+  #   role_gates:
+  #     - { prefix: "/admin", role: admin }
+
 scenarios:
 
   - scenario_id: add-partner-profile

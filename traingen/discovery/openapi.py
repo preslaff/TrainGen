@@ -3,6 +3,8 @@ Exact and deterministic — one record per operation, facts only, with *_hint
 breadcrumbs the synthesizer (Layer 2) may override."""
 from __future__ import annotations
 
+from .resource import resource_hint as _hint
+
 _METHODS = ("get", "post", "put", "patch", "delete")
 
 # Canonical short meanings; falls back to the response description otherwise.
@@ -11,7 +13,6 @@ _STATUS_MEANING = {
     400: "bad_request", 401: "unauthorized", 403: "forbidden",
     404: "not_found", 409: "conflict", 422: "validation_error", 500: "server_error",
 }
-_VERSION_SEGMENTS = {"api", "v1", "v2", "v3"}
 
 
 def _resolve_ref(spec: dict, ref: str) -> dict:
@@ -40,12 +41,9 @@ def _schema_fields(spec: dict, schema: dict) -> list:
     return fields
 
 
-def _resource_hint(path: str) -> str:
-    for seg in path.strip("/").split("/"):
-        if seg and not seg.startswith("{") and seg not in _VERSION_SEGMENTS:
-            return seg
-    head = path.strip("/").split("/")
-    return head[0] if head and head[0] else "root"
+def _resource_hint(path: str, scope=None) -> str:
+    segments = [s for s in path.strip("/").split("/") if s and not s.startswith("{")]
+    return _hint(segments, scope)
 
 
 def _verb_hint(method: str, path: str) -> str:
@@ -104,7 +102,7 @@ def _response_states(operation: dict) -> list:
     return states
 
 
-def extract_endpoints(spec: dict) -> list:
+def extract_endpoints(spec: dict, scope_segments=None) -> list:
     endpoints = []
     for path, item in (spec.get("paths") or {}).items():
         for method in _METHODS:
@@ -116,10 +114,10 @@ def extract_endpoints(spec: dict) -> list:
                 "operation_id": op.get("operationId") or f"{method}_{path}",
                 "method": method.upper(),
                 "path": path,
-                "tag": tags[0] if tags else _resource_hint(path),
+                "tag": tags[0] if tags else _resource_hint(path, scope_segments),
                 "summary": op.get("summary", ""),
                 "description": op.get("description", ""),
-                "resource_hint": _resource_hint(path),
+                "resource_hint": _resource_hint(path, scope_segments),
                 "task_verb_hint": _verb_hint(method, path),
                 "request_fields": _request_fields(spec, op),
                 "security": _security(spec, op),

@@ -14,9 +14,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .resource import resource_hint as _hint
+
 _PAGE = re.compile(r"^page\.(tsx|ts|jsx|js)$")
 _LAYOUT = re.compile(r"^layout\.(tsx|ts|jsx|js)$")
-_ACTION_SEGMENTS = {"new", "edit", "create"}
 
 _ITAGS = ("button", "a", "Link", "input", "select", "textarea")
 _TEXT_TAGS = {"button", "a", "link"}
@@ -138,12 +139,9 @@ def _route(typed: list) -> str:
     return "/" + "/".join(url) if url else "/"
 
 
-def _resource_hint(typed: list) -> str:
-    statics = [name for name, t in typed
-               if t == "static" and name not in _ACTION_SEGMENTS]
-    if statics:
-        return statics[-1]
-    return typed[0][0] if typed else "root"
+def _resource_hint(typed: list, scope=None) -> str:
+    statics = [name for name, t in typed if t == "static"]
+    return _hint(statics, scope)
 
 
 def _role_gate(route: str, role_gates: list) -> str:
@@ -153,7 +151,7 @@ def _role_gate(route: str, role_gates: list) -> str:
     return "public"
 
 
-def extract_routes(app_dir, role_gates: list, locale_params=()) -> list:
+def extract_routes(app_dir, role_gates: list, locale_params=(), scope_segments=None) -> list:
     app = Path(app_dir)
     routes = []
     for page in sorted(p for p in app.rglob("*") if _PAGE.match(p.name)):
@@ -170,7 +168,7 @@ def extract_routes(app_dir, role_gates: list, locale_params=()) -> list:
             "file": str(page.relative_to(app.parent)),
             "segments": segments,
             "dynamic_params": dynamic,
-            "resource_hint": _resource_hint(typed),
+            "resource_hint": _resource_hint(typed, scope_segments),
             "layout_chain": _layout_chain(app, page.parent),
             "role_gate": _role_gate(route, role_gates),
             "requires_seed_record": bool(dynamic),

@@ -66,8 +66,9 @@ def _inventory_hash(facts: dict) -> str:
 
 def build_inventory(dcfg: dconfig.DiscoveryConfig) -> dict:
     spec = _fetch_spec(dcfg.spec_url) if dcfg.spec_url else {}
-    endpoints = extract_endpoints(spec) if spec else []
-    routes = (extract_routes(dcfg.frontend_app_dir, dcfg.role_gates, dcfg.locale_params)
+    endpoints = extract_endpoints(spec, dcfg.scope_segments) if spec else []
+    routes = (extract_routes(dcfg.frontend_app_dir, dcfg.role_gates,
+                             dcfg.locale_params, dcfg.scope_segments)
               if dcfg.frontend_app_dir else [])
     i18n = {"locales": prod_config.load_config().langs, "strings": {}}
     usage: list = []                       # GA4 weighting is a later cut

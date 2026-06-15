@@ -22,6 +22,8 @@ defaults:
   #   ga4:      { property: "properties/XXXX", window_days: 30 }   # used in a later cut
   #   role_gates:
   #     - { prefix: "/admin", role: admin }
+  #   # scope/plumbing segments stripped when deriving the resource_hint join key:
+  #   scope_segments: [api, admin, member, me, dashboard, portal, auth]
 
 scenarios:
 

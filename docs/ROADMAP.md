@@ -141,8 +141,12 @@ approval → SSOT — producing many scenarios instead of one hand-written flow.
   `needs_seed_record`/`destructive`, merges approved drafts into `manifest/scenarios.yaml`.
 - `traingen/discover.py`: thin orchestrator over extract→synthesize→verify; CLI
   `python run.py --discover --role admin`.
-- Refine Layer 1 `resource_hint` for nested APIs (`/admin/leads` → `leads`, not `admin`) so
-  synthesis groups are feature-sized, not one giant `admin` group.
+
+**Done — `resource_hint` refinement:** `discovery/resource.py` strips a configurable scope
+set (`api`, `v{n}`, `admin`, `member`, `me`, `dashboard`, …) and takes the first remaining
+segment, applied identically to endpoints and routes. On the real API this split the
+89-endpoint `admin` / 39-endpoint `member` blobs into 43 feature-sized groups (members,
+analytics, applications, bookings, leads, …).
 
 **Files:** `traingen/discovery/{synthesize,llm,synthesize_cli}.py` (done);
 `{verify}.py`, `traingen/discover.py`, the merge tool, `run.py` (`--discover`) (remaining).

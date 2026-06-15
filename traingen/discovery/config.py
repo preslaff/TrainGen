@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from .. import config as prod_config
+from .resource import DEFAULT_SCOPE_SEGMENTS
 
 EXTRACTOR_VERSION = "0.1.0"
 SYNTHESIZER_VERSION = "0.1.0"
@@ -35,6 +36,7 @@ class DiscoveryConfig:
     ga4_window_days: int = 30
     role_gates: list = field(default_factory=lambda: list(DEFAULT_ROLE_GATES))
     locale_params: list = field(default_factory=lambda: list(DEFAULT_LOCALE_PARAMS))
+    scope_segments: list = field(default_factory=lambda: list(DEFAULT_SCOPE_SEGMENTS))
     extractor_version: str = EXTRACTOR_VERSION
     # Layer 2 (synthesize)
     synth_model: str = "claude-opus-4-8"
@@ -59,6 +61,7 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
         ga4_window_days=int(ga4.get("window_days", 30)),
         role_gates=d.get("role_gates") or list(DEFAULT_ROLE_GATES),
         locale_params=d.get("locale_params") or list(DEFAULT_LOCALE_PARAMS),
+        scope_segments=d.get("scope_segments") or list(DEFAULT_SCOPE_SEGMENTS),
         synth_model=os.environ.get("TRAINGEN_SYNTH_MODEL", d.get("synth_model", "claude-opus-4-8")),
         synth_effort=os.environ.get("TRAINGEN_SYNTH_EFFORT", d.get("synth_effort", "medium")),
     )

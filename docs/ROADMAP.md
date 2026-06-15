@@ -78,19 +78,25 @@ team. Layer 1 of discovery, standalone.
 
 ---
 
-## v0.2 — overlays + dual-language
+## v0.2 — overlays + dual-language — DONE (overlays)
 
 **Deliverable:** demo-mode visual quality (animated cursor, highlight ring, zoom) and the
 EN language path exercised end to end.
 
-**Work:**
-- `traingen/overlays/{cursor.js,highlight.js,zoom.js}` (skeletons in `BLUEPRINT.md` §5).
-- `record.py`: inject overlays via `page.add_init_script`, animate cursor to each target's
-  bounding box, apply `emphasis` (highlight/zoom), reset after each step. Fold
-  `cursor_travel_s` into the per-step dwell.
-- Run `add-partner-profile` for `--lang bg,en`; confirm independent pacing per language.
+**Done:**
+- `traingen/overlays/{cursor,highlight,zoom}.js`: DOM-node overlays (BLUEPRINT §5).
+  Lazily read `documentElement` (init scripts run at document_start before it exists — a
+  bug the real-browser test caught).
+- `record.py`: injects the three overlays via `page.add_init_script`, glides the cursor to
+  each target's bounding box (waits `cursor_travel_s`), applies `emphasis` highlight/zoom,
+  runs the action, then `reset()`s.
+- `tests/test_overlays.py`: drives the overlay JS in headless Chromium (cursor positions,
+  ring draws, zoom transforms, reset clears); self-skips where Playwright/Chromium absent
+  so `make test` stays portable. All seven suites pass.
+- EN path: the pipeline already runs per language (`--lang bg,en`) with independent pacing;
+  per-language narration text awaits the script LLM seam.
 
-**Files:** `traingen/overlays/*.js`, `traingen/record.py`.
+**Files:** `traingen/overlays/*.js`, `traingen/record.py`, `tests/test_overlays.py`.
 **Proves:** demo-mode quality + the dual-language flow (record twice, one per language).
 **Depends on:** v0.1-live.
 

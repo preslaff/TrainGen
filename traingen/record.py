@@ -3,7 +3,7 @@ dwelling per timeline.json, and log the ACTUAL wall-clock start/end offset of ea
 step relative to recording start. compose.py pins narration to these measured
 offsets, so drift cannot accumulate (BLUEPRINT §4, §5).
 
-v0.1: no overlays, Playwright-native webm capture, headed Chromium.
+v0.2: demo-mode overlays (cursor/highlight/zoom) injected as DOM nodes; dual-language.
 """
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 
 from . import config
+
+OVERLAYS = Path(__file__).parent / "overlays"
 
 
 def resolve_locator(page, loc: dict):
@@ -99,6 +101,8 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
             record_video_size=cfg.viewport,
         )
         page = ctx.new_page()
+        for js in ("cursor.js", "highlight.js", "zoom.js"):     # demo-mode overlays (BLUEPRINT §5)
+            page.add_init_script(path=str(OVERLAYS / js))
 
         login(page, scenario["role"], cfg)
         page.goto(scenario["entry_route"])
@@ -109,14 +113,26 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
 
         for step in scenario["steps"]:
             start = time.monotonic() - t0
-            el = resolve_locator(page, step["locator"])
+            el = resolve_locator(page, step["locator"]).first
             el.scroll_into_view_if_needed()
+
+            box = el.bounding_box()
+            if box:                                              # glide the cursor, then emphasise
+                page.evaluate("(b) => window.__tg && window.__tg.cursorTo(b)", box)
+                page.wait_for_timeout(int(cfg.cursor_travel_s * 1000))
+                emphasis = step.get("emphasis", "none")
+                if emphasis == "highlight":
+                    page.evaluate("(b) => window.__tg && window.__tg.highlight(b)", box)
+                elif emphasis == "zoom":
+                    page.evaluate("(b) => window.__tg && window.__tg.zoom(b, 1.4)", box)
+
             do_action(page, el, step)
 
             plan = plan_by_id[step["id"]]
             elapsed = (time.monotonic() - t0) - start
             dwell = plan["step_duration"] - elapsed
             page.wait_for_timeout(max(0, int(dwell * 1000)))
+            page.evaluate("() => window.__tg && window.__tg.reset()")   # clear highlight/zoom
 
             log["steps"].append({
                 "id": step["id"],

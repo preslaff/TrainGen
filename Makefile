@@ -35,6 +35,7 @@ test:      ## run all offline tests
 	python -m tests.test_verify
 	python -m tests.test_merge
 	python -m tests.test_discover
+	python -m tests.test_overlays
 
 clean:
 	rm -rf out/*

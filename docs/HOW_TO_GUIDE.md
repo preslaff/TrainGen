@@ -14,9 +14,9 @@ Each section is tagged so you know what is real versus planned:
 - **[available]** — implemented and usable now.
 - **[planned vX.Y]** — designed, not yet built; lands in that ROADMAP milestone.
 
-Current baseline: **v0.1** (production chain `script → narrate → choreograph → record →
-compose`, offline-proven). Discovery, subtitles, overlays, and the CI loop are not yet
-built.
+Current baseline: production chain (offline-proven) + demo-mode overlays (v0.2) + the full
+discovery pipeline (extract → synthesize → verify+expand → human-gate merge). Subtitles,
+intro/outro, and the CI loop are not yet built.
 
 ---
 
@@ -184,7 +184,9 @@ These are designed and will get their own sections here as they ship:
   stages no step predicts (`docs/DISCOVERY.md`). **[planned v0.4]**. The full discovery
   chain — extract → synthesize → verify (with live control discovery) → human-gate merge —
   is available; see Sections 10–14.
-- **Overlays** — animated cursor, highlight ring, zoom. **[planned v0.2]**
+- **Overlays** — animated cursor, highlight ring, zoom. **[available]** — DOM-node overlays
+  in `traingen/overlays/`, injected by `record.py`; the `emphasis` field per step
+  (`highlight`/`zoom`) drives them. Validated by `tests/test_overlays.py` in real Chromium.
 - **Subtitles** — soft VTT sidecar per language via aeneas. **[planned v0.3]**
 - **Intro/outro** — branded bookends in compose. **[planned v0.3]**
 - **CI loop** — regenerate only changed videos on a release tag. **[planned v0.5]**

@@ -41,7 +41,8 @@ def test_openapi():
 
 
 def test_nextjs():
-    routes = {r["route"]: r for r in extract_routes(APP, dconfig.DEFAULT_ROLE_GATES)}
+    routes = {r["route"]: r for r in
+              extract_routes(APP, dconfig.DEFAULT_ROLE_GATES, dconfig.DEFAULT_LOCALE_PARAMS)}
 
     # group segment is stripped from the URL but recorded in segments[]
     assert "/admin/partners/new" in routes
@@ -57,7 +58,16 @@ def test_nextjs():
     assert detail["requires_seed_record"] is True
 
     assert routes["/dashboard"]["role_gate"] == "public"
-    print(f"OK  nextjs: {len(routes)} routes, segments/role/layout/seed-flag correct")
+
+    # i18n [locale] segment is stripped from the URL and is NOT a seeded record
+    admin_dash = routes["/admin/dashboard"]
+    assert admin_dash["role_gate"] == "admin"
+    assert admin_dash["dynamic_params"] == [] and admin_dash["requires_seed_record"] is False
+    assert any(s["type"] == "locale" for s in admin_dash["segments"])
+    # real dynamic segment beside a locale: /[locale]/trip/[slug] -> /trip/[slug]
+    trip = routes["/trip/[slug]"]
+    assert trip["dynamic_params"] == ["slug"] and trip["requires_seed_record"] is True
+    print(f"OK  nextjs: {len(routes)} routes, segments/role/layout/seed-flag/locale correct")
 
 
 def test_inventory_deterministic():

@@ -1,10 +1,13 @@
 """Next.js App Router → routes[] (FEATURE_INVENTORY §4.3). Static, no execution.
 
 Route enumeration (routes, segments, dynamic params, layout chain, requires_seed_record)
-is exact. Control extraction is a deliberately heuristic regex scan of each page file:
-it captures interactive JSX tags and their data-testid presence/absence well enough to
-produce testid_coverage and the testid_gaps list, but it does not follow imported
-components. Treated as a first-cut signal, refined later (e.g. a real TSX parse / crawl).
+is exact. Control extraction is heuristic: a brace-aware scan of each page file for
+interactive JSX tags and their data-testid presence/absence. It does NOT follow imported
+components, and it favours precision over recall — a control is only reported with an
+identity (and only feeds testid_gaps) when it has a clean accessible name: an aria-label,
+an i18n `t("key")`, or a `name=` attribute. Buttons whose content is a bare JS expression
+are counted for coverage but not emitted as gaps (they would be noise on a dev ask-list).
+A real TSX parse / Layer 3 crawl hardens this later.
 """
 from __future__ import annotations
 
@@ -15,59 +18,106 @@ _PAGE = re.compile(r"^page\.(tsx|ts|jsx|js)$")
 _LAYOUT = re.compile(r"^layout\.(tsx|ts|jsx|js)$")
 _ACTION_SEGMENTS = {"new", "edit", "create"}
 
-_WITH_TEXT = re.compile(r"<(button|a|Link)\b([^>]*)>([^<]{0,120})", re.IGNORECASE | re.DOTALL)
-_INPUT_LIKE = re.compile(r"<(input|select|textarea)\b([^>]*?)/?>", re.IGNORECASE | re.DOTALL)
+_ITAGS = ("button", "a", "Link", "input", "select", "textarea")
+_TEXT_TAGS = {"button", "a", "link"}
+_I18N = re.compile(r"""\bt\(\s*["']([^"']+)["']""")
+_EXPR_CHARS = set("{}()<>=`")
 
 _ROLE = {"button": "button", "link": "link", "text_input": "textbox",
          "select": "combobox", "checkbox": "checkbox"}
 
 
 def _attr(attrs: str, name: str):
-    m = re.search(name + r'=[\"\']([^\"\']+)[\"\']', attrs)
+    m = re.search(r"\b" + name + r'=[\"\']([^\"\']+)[\"\']', attrs)
     return m.group(1) if m else None
 
 
-def _segment_type(name: str) -> str:
+def _param_name(name: str) -> str:
+    return name.strip("[]").lstrip(".").rstrip("?")
+
+
+def _segment_type(name: str, locale_params=()) -> str:
     if name.startswith("(") and name.endswith(")"):
         return "group"
     if name.startswith("[") and name.endswith("]"):
-        return "dynamic"
+        return "locale" if _param_name(name) in locale_params else "dynamic"
     return "static"
 
 
-def _control(tag: str, attrs: str, text: str | None = None) -> dict:
-    tag = tag.lower()
-    testid = _attr(attrs, "data-testid")
-    aria = _attr(attrs, "aria-label")
-    name_attr = _attr(attrs, "name")
-    placeholder = _attr(attrs, "placeholder")
+def _clean(s: str | None) -> str:
+    """A visible string is usable as a label only if it has no JSX-expression chars."""
+    s = (s or "").strip()
+    return "" if (not s or any(c in _EXPR_CHARS for c in s)) else s
+
+
+def _opening_tags(text: str, tag: str):
+    """Yield (attrs, end_index) for each `<tag ...>` opening, tolerating arrow
+    functions and nested braces in attributes (so `=>` and `onClick={() => x}` don't
+    truncate the tag the way a naive `[^>]*` would)."""
+    needle, n, i = "<" + tag, len(text), 0
+    while True:
+        i = text.find(needle, i)
+        if i < 0:
+            return
+        j = i + len(needle)
+        if j < n and (text[j].isalnum() or text[j] in "-_"):
+            i = j                      # e.g. <article when scanning for <a
+            continue
+        depth, k = 0, j
+        while k < n:
+            c = text[k]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth = max(0, depth - 1)
+            elif c == ">" and depth == 0 and text[k - 1] != "=":
+                break
+            k += 1
+        yield text[j:k], k
+        i = k + 1
+
+
+def _inner_text(text: str, end: int) -> str:
+    nxt = text.find("<", end + 1)
+    return text[end + 1: nxt] if nxt > 0 else ""
+
+
+def _ctype(tag: str, attrs: str) -> str:
     if tag in ("a", "link"):
-        ctype = "link"
-    elif tag == "button":
-        ctype = "button"
-    elif tag == "select":
-        ctype = "select"
-    elif tag == "textarea":
-        ctype = "text_input"
-    else:  # input
-        itype = _attr(attrs, "type")
-        ctype = ("button" if itype in ("button", "submit")
-                 else "checkbox" if itype == "checkbox" else "text_input")
-    label = aria or ((text or "").strip() or name_attr or placeholder or "")
-    return {
-        "label": label,
-        "control_type": ctype,
-        "role": _ROLE.get(ctype),
-        "testid": testid,
-        "name_attr": name_attr,
-        "i18n_key": None,
-        "maps_to_field_hint": name_attr,
-    }
+        return "link"
+    if tag == "button":
+        return "button"
+    if tag == "select":
+        return "select"
+    if tag == "textarea":
+        return "text_input"
+    itype = _attr(attrs, "type")            # input
+    return "button" if itype in ("button", "submit") else \
+        "checkbox" if itype == "checkbox" else "text_input"
 
 
 def _controls(text: str) -> list:
-    controls = [_control(m.group(1), m.group(2), m.group(3)) for m in _WITH_TEXT.finditer(text)]
-    controls += [_control(m.group(1), m.group(2)) for m in _INPUT_LIKE.finditer(text)]
+    controls = []
+    for tag in _ITAGS:
+        low = tag.lower()
+        for attrs, end in _opening_tags(text, tag):
+            inner = _inner_text(text, end) if low in _TEXT_TAGS else ""
+            i18n_m = _I18N.search(attrs) or _I18N.search(inner)
+            i18n_key = i18n_m.group(1) if i18n_m else None
+            aria = _attr(attrs, "aria-label")
+            name_attr = _attr(attrs, "name")
+            placeholder = _attr(attrs, "placeholder")
+            label = _clean(aria) or _clean(inner) or (i18n_key or "") \
+                or (name_attr or "") or _clean(placeholder)
+            controls.append({
+                "label": label,
+                "control_type": _ctype(low, attrs),
+                "role": _ROLE.get(_ctype(low, attrs)),
+                "testid": _attr(attrs, "data-testid"),
+                "name_attr": name_attr,
+                "i18n_key": i18n_key,
+                "maps_to_field_hint": name_attr,
+            })
     return controls
 
 
@@ -82,16 +132,18 @@ def _layout_chain(app: Path, page_dir: Path) -> list:
     return chain
 
 
-def _route(parts: list) -> str:
-    url = [p for p in parts if _segment_type(p) != "group"]
+def _route(typed: list) -> str:
+    # keep static + real dynamic segments; drop route groups and i18n locale segments
+    url = [name for name, t in typed if t in ("static", "dynamic")]
     return "/" + "/".join(url) if url else "/"
 
 
-def _resource_hint(parts: list) -> str:
-    statics = [p for p in parts if _segment_type(p) == "static" and p not in _ACTION_SEGMENTS]
+def _resource_hint(typed: list) -> str:
+    statics = [name for name, t in typed
+               if t == "static" and name not in _ACTION_SEGMENTS]
     if statics:
         return statics[-1]
-    return parts[0] if parts else "root"
+    return typed[0][0] if typed else "root"
 
 
 def _role_gate(route: str, role_gates: list) -> str:
@@ -101,23 +153,24 @@ def _role_gate(route: str, role_gates: list) -> str:
     return "public"
 
 
-def extract_routes(app_dir, role_gates: list) -> list:
+def extract_routes(app_dir, role_gates: list, locale_params=()) -> list:
     app = Path(app_dir)
     routes = []
     for page in sorted(p for p in app.rglob("*") if _PAGE.match(p.name)):
         parts = [p for p in page.parent.relative_to(app).parts if p != "."]
-        route = _route(parts)
-        segments = [{"name": p, "type": _segment_type(p)} for p in parts]
-        dynamic = [p.strip("[]").lstrip(".") for p in parts if _segment_type(p) == "dynamic"]
+        typed = [(p, _segment_type(p, locale_params)) for p in parts]
+        route = _route(typed)
+        segments = [{"name": name, "type": t} for name, t in typed]
+        dynamic = [_param_name(name) for name, t in typed if t == "dynamic"]
         controls = _controls(page.read_text(encoding="utf-8", errors="ignore"))
-        missing = [c["label"] or c["name_attr"] or c["control_type"]
-                   for c in controls if not c["testid"]]
+        # only nameable controls (clean accessible name) are actionable gaps
+        missing = [c["label"] for c in controls if not c["testid"] and c["label"]]
         routes.append({
             "route": route,
             "file": str(page.relative_to(app.parent)),
             "segments": segments,
             "dynamic_params": dynamic,
-            "resource_hint": _resource_hint(parts),
+            "resource_hint": _resource_hint(typed),
             "layout_chain": _layout_chain(app, page.parent),
             "role_gate": _role_gate(route, role_gates),
             "requires_seed_record": bool(dynamic),

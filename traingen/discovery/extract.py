@@ -32,18 +32,30 @@ def _slug(text: str) -> str:
 
 
 def _aggregate_testid_gaps(routes: list) -> list:
-    gaps = []
+    """One entry per nameable control lacking a data-testid. Controls without a clean
+    accessible name (bare JS-expression buttons) are skipped — they would be noise on a
+    dev ask-list. Deduplicated per (route, suggested_testid)."""
+    gaps, seen = [], set()
     for r in routes:
         for c in r["controls"]:
-            if c["testid"] is None:
-                label = c["label"] or c["name_attr"] or c["control_type"]
-                slug = _slug(c["name_attr"] or label or "control")
-                gaps.append({
-                    "route": r["route"],
-                    "control": c["name_attr"] or label,
-                    "label": label,
-                    "suggested_testid": f"{r['resource_hint']}-{slug}" if slug else None,
-                })
+            if c["testid"] is not None or not c["label"]:
+                continue
+            basis = c["name_attr"] or c["i18n_key"] or c["label"]
+            slug = _slug(basis)
+            if not slug:
+                continue
+            suggested = f"{r['resource_hint']}-{slug}"
+            key = (r["route"], suggested)
+            if key in seen:
+                continue
+            seen.add(key)
+            gaps.append({
+                "route": r["route"],
+                "control": basis,
+                "label": c["label"],
+                "control_type": c["control_type"],
+                "suggested_testid": suggested,
+            })
     return gaps
 
 
@@ -55,7 +67,8 @@ def _inventory_hash(facts: dict) -> str:
 def build_inventory(dcfg: dconfig.DiscoveryConfig) -> dict:
     spec = _fetch_spec(dcfg.spec_url) if dcfg.spec_url else {}
     endpoints = extract_endpoints(spec) if spec else []
-    routes = extract_routes(dcfg.frontend_app_dir, dcfg.role_gates) if dcfg.frontend_app_dir else []
+    routes = (extract_routes(dcfg.frontend_app_dir, dcfg.role_gates, dcfg.locale_params)
+              if dcfg.frontend_app_dir else [])
     i18n = {"locales": prod_config.load_config().langs, "strings": {}}
     usage: list = []                       # GA4 weighting is a later cut
     testid_gaps = _aggregate_testid_gaps(routes)

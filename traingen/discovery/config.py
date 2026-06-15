@@ -15,7 +15,12 @@ EXTRACTOR_VERSION = "0.1.0"
 
 # Heuristic prefix -> role mapping (DESIGN.md R5 / FEATURE_INVENTORY §4.3 role_gate).
 # Parsing middleware.ts directly is a later refinement; this is the first-cut stand-in.
-DEFAULT_ROLE_GATES = [{"prefix": "/admin", "role": "admin"}]
+DEFAULT_ROLE_GATES = [{"prefix": "/admin", "role": "admin"},
+                      {"prefix": "/member", "role": "member"}]
+
+# i18n locale segments (e.g. next-intl `[locale]`): treated as routing prefixes, not
+# records — stripped from the route URL and excluded from dynamic_params / seed detection.
+DEFAULT_LOCALE_PARAMS = ["locale", "lang", "locale?"]
 
 
 @dataclass
@@ -28,6 +33,7 @@ class DiscoveryConfig:
     ga4_property: str | None = None
     ga4_window_days: int = 30
     role_gates: list = field(default_factory=lambda: list(DEFAULT_ROLE_GATES))
+    locale_params: list = field(default_factory=lambda: list(DEFAULT_LOCALE_PARAMS))
     extractor_version: str = EXTRACTOR_VERSION
 
 
@@ -46,4 +52,5 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
         ga4_property=ga4.get("property"),
         ga4_window_days=int(ga4.get("window_days", 30)),
         role_gates=d.get("role_gates") or list(DEFAULT_ROLE_GATES),
+        locale_params=d.get("locale_params") or list(DEFAULT_LOCALE_PARAMS),
     )

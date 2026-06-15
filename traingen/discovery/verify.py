@@ -64,14 +64,22 @@ def _tokens(s: str) -> set:
     return set(re.findall(r"[a-z0-9]+", (s or "").lower()))
 
 
+# Generic words that must NOT be the sole basis for a match (else "Open the form" binds to
+# "Open Next.js Dev Tools" on the strength of "open" alone).
+_GENERIC_TOKENS = {"open", "the", "a", "an", "to", "of", "and", "or", "new", "view", "page",
+                   "this", "that", "your", "for", "on", "in", "with", "go", "back", "next",
+                   "step", "click", "set", "show", "all"}
+
+
 class HeuristicMatcher:
-    """Match a step to a live control by action→role compatibility + intent/name token
-    overlap. Deterministic; no LLM. Good enough to bind obvious controls, conservative
-    enough (>=1 shared token) to avoid wild guesses."""
+    """Match a step to a live control by action→role compatibility + CONTENT token overlap
+    (generic verbs/articles excluded). Deterministic; conservative (>=1 shared content
+    token) so it binds obvious controls without latching onto chrome like a dev-tools button."""
 
     def match(self, step: dict, controls: list):
         ok_roles = _ROLE_FOR_ACTION.get(step.get("action"), set())
-        want = _tokens(step.get("intent")) | _tokens((step.get("locator") or {}).get("label"))
+        want = (_tokens(step.get("intent")) | _tokens((step.get("locator") or {}).get("label"))) \
+            - _GENERIC_TOKENS
         best, best_score = None, 0
         for c in controls:
             if ok_roles and c.get("role") not in ok_roles:
@@ -269,7 +277,7 @@ class PlaywrightDriver:
     def snapshot(self):
         """Real interactive controls on the current page (role + accessible name + testid)."""
         try:
-            return self.page.eval_on_selector_all(
+            controls = self.page.eval_on_selector_all(
                 "button,a,input,select,textarea,[role=button],[role=link],[role=combobox]",
                 """els => els.map(e => {
                     const tag = e.tagName.toLowerCase();
@@ -282,6 +290,8 @@ class PlaywrightDriver:
                 }).filter(c => c.name)""")
         except Exception:
             return []
+        # drop framework/dev-overlay chrome that isn't part of the app
+        return [c for c in controls if "next.js dev" not in c["name"].lower()]
 
     def advance(self, step: dict):
         try:

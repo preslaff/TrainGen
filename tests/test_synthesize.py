@@ -95,13 +95,17 @@ def test_candidate_routes_enable_cross_noun_binding():
         "routes": [{"route": "/admin/dashboard/communications", "resource_hint": "communications",
                     "role_gate": "admin", "controls": [
                         {"label": "New announcement", "control_type": "button", "role": "button",
-                         "testid": "comms-new", "name_attr": None, "i18n_key": None}]}],
+                         "testid": "comms-new", "name_attr": None, "i18n_key": None}]},
+                   {"route": "/partner/apply", "resource_hint": "apply", "role_gate": "public",
+                    "controls": [{"label": "Submit", "control_type": "button", "role": "button",
+                                  "testid": None, "name_attr": None, "i18n_key": None}]}],
     }
     groups = synthesize.group_by_resource(inv)
     ann = groups["announcements"]
     assert ann["endpoints"] and not ann["routes"], "noun mismatch: no same-noun route"
-    assert any(r["route"] == "/admin/dashboard/communications" for r in ann["candidate_routes"]), \
-        "same-role route offered as a candidate"
+    cand_routes = {r["route"] for r in ann["candidate_routes"]}
+    assert "/admin/dashboard/communications" in cand_routes, "same-role route offered"
+    assert "/partner/apply" in cand_routes, "public route offered too (features span scopes)"
     testids, _, _ = synthesize._control_index(ann)
     assert "comms-new" in testids, "candidate-route controls are bindable (cross-noun reconcile)"
     print("OK  candidate routes: announcements endpoints can bind to the communications page's controls")

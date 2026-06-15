@@ -135,20 +135,21 @@ def _draft_schema() -> dict:
 _SCOPES = ("admin", "member")
 
 
-def _group_scope(endpoints: list) -> str | None:
-    """The role scope a group's endpoints sit under, from path segments or security —
-    used to offer same-scope candidate routes for cross-noun reconciliation."""
-    from collections import Counter
-    c = Counter()
+def _group_scopes(endpoints: list) -> set:
+    """All role scopes a group's endpoints touch (path segments or security), plus
+    `public` always — a feature can span admin (review) and public (submit), so candidate
+    routes must cover every scope present, not just the dominant one."""
+    scopes = set()
     for e in endpoints:
         for seg in e.get("path", "").strip("/").split("/"):
             if seg in _SCOPES:
-                c[seg] += 1
+                scopes.add(seg)
                 break
         for sec in e.get("security", []):
             if sec in _SCOPES:
-                c[sec] += 1
-    return c.most_common(1)[0][0] if c else None
+                scopes.add(sec)
+    scopes.add("public")
+    return scopes
 
 
 def group_by_resource(inventory: dict) -> dict:
@@ -165,7 +166,7 @@ def group_by_resource(inventory: dict) -> dict:
     all_routes = inventory.get("routes", [])
     for res, g in groups.items():
         own = {r["route"] for r in g["routes"]}
-        scope = _group_scope(g["endpoints"])
+        scopes = _group_scopes(g["endpoints"])
         g["resource"] = res
         g["i18n"] = inventory.get("i18n", {})
         g["usage"] = [u for u in inventory.get("usage", []) if u.get("route") in own]
@@ -173,7 +174,7 @@ def group_by_resource(inventory: dict) -> dict:
         g["candidate_routes"] = [
             r for r in all_routes
             if r["route"] not in own and r.get("controls")
-            and (scope is None or r.get("role_gate") == scope)
+            and r.get("role_gate") in scopes
         ] if g["endpoints"] else []
     return groups
 

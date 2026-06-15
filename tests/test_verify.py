@@ -149,6 +149,17 @@ def test_expansion_binds_from_live_controls():
     print("OK  expansion: unbound steps bound to live-discovered controls (provenance crawl-only)")
 
 
+def test_matcher_ignores_generic_and_chrome():
+    m = verify.HeuristicMatcher()
+    controls = [{"role": "button", "name": "Open Next.js Dev Tools", "testid": None},
+                {"role": "button", "name": "New announcement", "testid": None}]
+    assert m.match({"action": "click", "intent": "Open the new announcement form", "locator": {}},
+                   controls)["name"] == "New announcement"
+    # a purely generic intent must not latch onto chrome
+    assert m.match({"action": "click", "intent": "Open the page", "locator": {}}, controls) is None
+    print("OK  matcher: ignores generic tokens; won't bind to dev-tools chrome")
+
+
 def test_live_route_reinserts_locale():
     assert verify.live_route("/admin/announcements", "en") == "/admin/en/announcements"
     assert verify.live_route("/member/dashboard/bookings", "en") == "/member/en/dashboard/bookings"
@@ -162,6 +173,7 @@ def main() -> int:
     test_role_grouping_and_ceiling()
     test_destructive_final_step_not_advanced()
     test_expansion_binds_from_live_controls()
+    test_matcher_ignores_generic_and_chrome()
     test_live_route_reinserts_locale()
     print("\nall verify tests passed")
     return 0

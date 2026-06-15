@@ -48,6 +48,9 @@ class FakeDriver:
         tid = (locator or {}).get("testid")
         return ("confirmed", 1) if tid in self.present else ("unresolved", 0)
 
+    def snapshot(self):
+        return []                 # no live controls -> expansion finds nothing
+
     def advance(self, step):
         self.advanced += 1
 
@@ -116,6 +119,36 @@ def test_destructive_final_step_not_advanced():
     print("OK  read-mostly: destructive final step confirmed but not executed")
 
 
+def test_expansion_binds_from_live_controls():
+    steps = [
+        {"id": "open", "intent": "Open the new announcement form", "locator": {}, "action": "click",
+         "emphasis": "none", "settle_ms": 0, "provenance": "code:endpoint", "bound_via": "unbound"},
+        {"id": "title", "intent": "Enter the announcement title", "locator": {}, "action": "fill",
+         "emphasis": "none", "settle_ms": 0, "provenance": "code:endpoint", "bound_via": "unbound"},
+    ]
+    scen = {"scenario_id": "ann", "role": "admin", "entry_route": "/admin/x",
+            "destructive": False, "provenance": "inferred", "open_questions": [], "steps": steps}
+    controls = [{"role": "button", "name": "New announcement", "testid": None},
+                {"role": "textbox", "name": "Announcement title", "testid": None}]
+
+    class LiveDriver:
+        def goto(self, r): pass
+        def resolve(self, loc): return ("unresolved", 0)   # nothing binds via the code locator
+        def snapshot(self): return controls
+        def advance(self, s): pass
+        def close(self): pass
+
+    verify.verify_scenario(scen, LiveDriver(), max_steps=12)   # default HeuristicMatcher
+    o, t = scen["steps"]
+    assert o["bound_via"] == "role" and o["locator"] == {"role": "button", "name": "New announcement"}
+    assert o["provenance"] == "crawl-only" and o["verified"]["status"] == "bound_by_crawl"
+    assert "drop_candidate" not in o
+    assert t["bound_via"] == "role" and t["locator"]["role"] == "textbox"
+    assert scen["verification"]["bound_by_crawl"] == ["open", "title"]
+    assert scen["verification"]["needs_review"] is False
+    print("OK  expansion: unbound steps bound to live-discovered controls (provenance crawl-only)")
+
+
 def test_live_route_reinserts_locale():
     assert verify.live_route("/admin/announcements", "en") == "/admin/en/announcements"
     assert verify.live_route("/member/dashboard/bookings", "en") == "/member/en/dashboard/bookings"
@@ -128,6 +161,7 @@ def main() -> int:
     test_promotion_and_flagging()
     test_role_grouping_and_ceiling()
     test_destructive_final_step_not_advanced()
+    test_expansion_binds_from_live_controls()
     test_live_route_reinserts_locale()
     print("\nall verify tests passed")
     return 0

@@ -180,10 +180,10 @@ Everything lands under `out/<scenario_id>/<lang>/`:
 
 These are designed and will get their own sections here as they ship:
 
-- **Agentic sub-step expansion** — expand runtime-only sub-steps a crawl reveals (modal
-  stages, wizard pages no locator predicts) (`docs/DISCOVERY.md`). **[planned v0.4]**. The
-  full discovery chain (extract → synthesize → verify → human-gate merge) is otherwise
-  available — see Sections 10–14.
+- **Sub-step *insertion*** — inventing brand-new sub-steps for runtime-only wizard/modal
+  stages no step predicts (`docs/DISCOVERY.md`). **[planned v0.4]**. The full discovery
+  chain — extract → synthesize → verify (with live control discovery) → human-gate merge —
+  is available; see Sections 10–14.
 - **Overlays** — animated cursor, highlight ring, zoom. **[planned v0.2]**
 - **Subtitles** — soft VTT sidecar per language via aeneas. **[planned v0.3]**
 - **Intro/outro** — branded bookends in compose. **[planned v0.3]**
@@ -258,10 +258,12 @@ make install            # Playwright + Chromium, if not already
 make verify             # reads out/discovery/drafts.yaml -> drafts.verified.yaml
 ```
 
-The command lists scenarios that `need review` (unresolved/ambiguous/truncated). A human
-then approves/trims/merges the verified drafts into `manifest/scenarios.yaml` (the merge
-tool is the remaining v0.4 piece). First cut confirms and flags; agentic expansion of
-runtime-only sub-steps (modal/wizard pages) is the follow-up.
+It also **discovers controls live**: when a step's locator doesn't resolve, it snapshots the
+page's real interactive controls and binds the step to an actual one (provenance
+`crawl-only`) — sidestepping missing test-ids and components the static scan can't see.
+Matcher is `heuristic` by default; set `TRAINGEN`-config `verify_matcher: llm` for the
+LLM matcher. The command lists scenarios that `need review`; a human then merges the
+verified drafts (Section 13).
 
 ## 13. Merge verified drafts into the SSOT — the human gate **[available]**
 

@@ -156,11 +156,19 @@ approval → SSOT — producing many scenarios instead of one hand-written flow.
   at the explicit merge step (never auto-commits). `make discover`.
 - Stub/monkeypatched offline tests: `tests/test_merge.py`, `tests/test_discover.py`.
 
-**Remaining for v0.4:**
-- Agentic EXPANSION of runtime-only sub-steps (modal stages / wizard pages no locator
-  predicts) — the genuinely agentic follow-up; the verify cut confirms/flags only.
+**Done — Layer 3 agentic expansion (live control discovery):**
+- `verify.py`: when a step's code locator doesn't resolve, the crawl snapshots the page's
+  real interactive controls off the rendered DOM and a pluggable matcher binds the step to
+  an actual control (provenance `crawl-only`). Sidesteps the app's missing test-ids and the
+  static scan's blindness to imported components. Matcher: `HeuristicMatcher` (default,
+  offline) or `LLMMatcher` (optional, `verify_matcher: llm`). Config `verify_expand`.
+  Live-validated: `/en/partner/apply` snapshot found 25 controls vs 2 from the static scan.
 
-v0.4 now runs end to end as code (extract → synthesize → verify → human-gate merge);
+**Remaining for v0.4 (optional):**
+- Inserting brand-new sub-steps for runtime-only wizard/modal stages no step predicts
+  (expansion currently binds the steps Layer 2 proposed; it doesn't yet invent new ones).
+
+v0.4 runs end to end as code (extract → synthesize → verify+expand → human-gate merge);
 the live stages (synthesize, verify) await an API key and a running demo tenant.
 
 **Done — `resource_hint` refinement:** `discovery/resource.py` strips a configurable scope

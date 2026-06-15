@@ -45,6 +45,8 @@ class DiscoveryConfig:
     synthesizer_version: str = SYNTHESIZER_VERSION
     # Layer 3 (verify)
     verify_max_steps: int = 12          # per-scenario crawl ceiling (the cage)
+    verify_expand: bool = True          # bind unresolved steps to live-discovered controls
+    verify_matcher: str = "heuristic"   # "heuristic" | "llm"
     live_locale: str = "en"             # extract strips [locale]; verify re-inserts it for live URLs
     live_scopes: list = field(default_factory=lambda: ["admin", "member"])
 

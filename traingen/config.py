@@ -26,6 +26,10 @@ class Config:
     headless: bool = False
     tts_backend: str = "offline"   # "offline" (espeak-ng) | "omnivoice"
     login: dict | None = None      # optional auth block (see record.login)
+    # script narration LLM (falls back to echo when no key)
+    script_backend: str = "anthropic"   # "anthropic" | "echo"
+    script_model: str = "claude-opus-4-8"
+    script_effort: str = "low"
 
 
 def _manifest(path=MANIFEST) -> dict:
@@ -45,6 +49,9 @@ def load_config(path=MANIFEST) -> Config:
         headless=os.environ.get("TRAINGEN_HEADLESS", "0") == "1",
         tts_backend=os.environ.get("TRAINGEN_TTS", "offline"),
         login=d.get("login"),
+        script_backend=os.environ.get("TRAINGEN_SCRIPT_BACKEND", d.get("script_backend", "anthropic")),
+        script_model=os.environ.get("TRAINGEN_SCRIPT_MODEL", d.get("script_model", "claude-opus-4-8")),
+        script_effort=os.environ.get("TRAINGEN_SCRIPT_EFFORT", d.get("script_effort", "low")),
     )
 
 

@@ -93,10 +93,14 @@ EN language path exercised end to end.
 - `tests/test_overlays.py`: drives the overlay JS in headless Chromium (cursor positions,
   ring draws, zoom transforms, reset clears); self-skips where Playwright/Chromium absent
   so `make test` stays portable. All seven suites pass.
-- EN path: the pipeline already runs per language (`--lang bg,en`) with independent pacing;
-  per-language narration text awaits the script LLM seam.
+- EN path: the pipeline runs per language (`--lang bg,en`) with independent pacing, AND
+  narration text is now genuinely per-language — `script.py` calls Claude
+  (`AnthropicNarrator`, one call per scenario/lang, calm/instructional/second-person in the
+  target language) via the shared `traingen/llm.py`, falling back to `EchoNarrator` (the
+  step intent) when there's no API key so offline runs still work. `tests/test_script.py`.
 
-**Files:** `traingen/overlays/*.js`, `traingen/record.py`, `tests/test_overlays.py`.
+**Files:** `traingen/overlays/*.js`, `traingen/record.py`, `traingen/script.py`,
+`traingen/llm.py`, `tests/{test_overlays,test_script}.py`.
 **Proves:** demo-mode quality + the dual-language flow (record twice, one per language).
 **Depends on:** v0.1-live.
 

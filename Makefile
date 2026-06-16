@@ -43,6 +43,7 @@ test:      ## run all offline tests
 	python -m tests.test_subtitle
 	python -m tests.test_compose
 	python -m tests.test_env
+	python -m tests.test_vision
 
 clean:
 	rm -rf out/*

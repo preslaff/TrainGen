@@ -75,8 +75,9 @@ class HeuristicMatcher:
     """Match a step to a live control by action→role compatibility + CONTENT token overlap
     (generic verbs/articles excluded). Deterministic; conservative (>=1 shared content
     token) so it binds obvious controls without latching onto chrome like a dev-tools button."""
+    needs_screenshot = False
 
-    def match(self, step: dict, controls: list):
+    def match(self, step: dict, controls: list, screenshot=None):
         ok_roles = _ROLE_FOR_ACTION.get(step.get("action"), set())
         want = (_tokens(step.get("intent")) | _tokens((step.get("locator") or {}).get("label"))) \
             - _GENERIC_TOKENS
@@ -90,8 +91,50 @@ class HeuristicMatcher:
         return best if best_score >= 1 else None
 
 
+_VISION_SCHEMA = {"type": "object", "additionalProperties": False,
+                  "properties": {"index": {"type": "integer"}},
+                  "required": ["index"]}
+
+
+class VisionMatcher:
+    """Pick the control by LOOKING at the page (MULTIMODAL.md C1). Given the screenshot +
+    the step intent + the DOM candidates (name + on-screen box), the model returns the index
+    of the control that performs the step (or -1). We bind to that DOM control's semantic
+    locator — vision understands, the DOM stays the durable locator. Falls back to heuristic
+    if there's no screenshot or on any error."""
+    needs_screenshot = True
+
+    def __init__(self, backend):
+        self.backend = backend
+        self._fallback = HeuristicMatcher()
+
+    def match(self, step: dict, controls: list, screenshot=None):
+        if not controls or not screenshot:
+            return self._fallback.match(step, controls)
+        try:
+            listing = "\n".join(
+                f"{i}: role={c.get('role')} name={c.get('name')!r} box={c.get('box')}"
+                for i, c in enumerate(controls))
+            out = self.backend.complete_vision(
+                "You are binding a software-training step to a UI control. Look at the "
+                "screenshot and the numbered candidate controls (with their on-screen boxes). "
+                "Return JSON {index} = the control that performs the step, or -1 if none fits.",
+                f"step intent: {step.get('intent')}\naction: {step.get('action')}\n"
+                f"candidates:\n{listing}",
+                screenshot, _VISION_SCHEMA)
+            i = out.get("index", -1)
+            return controls[i] if 0 <= i < len(controls) else None
+        except Exception:
+            return self._fallback.match(step, controls)
+
+
 def get_matcher(cfg):
-    if getattr(cfg, "verify_matcher", "heuristic") == "llm":
+    matcher = getattr(cfg, "verify_matcher", "heuristic")
+    if matcher == "vision":
+        from ..llm import AnthropicBackend
+        return VisionMatcher(AnthropicBackend(
+            getattr(cfg, "vision_model", "claude-opus-4-8"), getattr(cfg, "synth_effort", "medium")))
+    if matcher == "llm":
         from .llm import get_backend
         return LLMMatcher(get_backend(cfg))
     return HeuristicMatcher()
@@ -105,11 +148,13 @@ class LLMMatcher:
                "properties": {"index": {"type": "integer"}},
                "required": ["index"]}
 
+    needs_screenshot = False
+
     def __init__(self, backend):
         self.backend = backend
         self._fallback = HeuristicMatcher()
 
-    def match(self, step: dict, controls: list):
+    def match(self, step: dict, controls: list, screenshot=None):
         if not controls:
             return None
         try:
@@ -177,7 +222,11 @@ def verify_scenario(scenario: dict, driver, max_steps: int, matcher=None, expand
             continue
 
         # EXPANSION: the code locator didn't resolve — discover a real control live
-        control = matcher.match(st, driver.snapshot()) if expand else None
+        control = None
+        if expand:
+            controls = driver.snapshot()
+            shot = driver.screenshot() if getattr(matcher, "needs_screenshot", False) else None
+            control = matcher.match(st, controls, shot)
         loc, via = _locator_from_control(control) if control else (None, None)
         if loc:
             st["locator"], st["bound_via"] = loc, via
@@ -288,12 +337,20 @@ class PlaywrightDriver:
                         input:(e.type==='checkbox'?'checkbox':e.type==='radio'?'radio':'textbox')}[tag] || tag);
                     const name = (e.getAttribute('aria-label') || e.innerText ||
                         e.placeholder || e.name || '').trim().slice(0, 80);
-                    return {role, name, testid: e.getAttribute('data-testid')};
+                    const r = e.getBoundingClientRect();
+                    return {role, name, testid: e.getAttribute('data-testid'),
+                            box: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]};
                 }).filter(c => c.name)""")
         except Exception:
             return []
         # drop framework/dev-overlay chrome that isn't part of the app
         return [c for c in controls if "next.js dev" not in c["name"].lower()]
+
+    def screenshot(self) -> bytes:
+        try:
+            return self.page.screenshot(type="png")
+        except Exception:
+            return b""
 
     def advance(self, step: dict):
         try:

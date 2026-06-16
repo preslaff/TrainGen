@@ -35,3 +35,17 @@ class AnthropicBackend:
             messages=[{"role": "user", "content": user}],
             output_config={"effort": self.effort})
         return "".join(b.text for b in resp.content if b.type == "text").strip()
+
+    def complete_vision(self, system: str, user: str, image_png: bytes, schema: dict,
+                        media_type: str = "image/png") -> dict:
+        """Multimodal structured call: an image + text -> JSON matching `schema`."""
+        import base64
+        b64 = base64.standard_b64encode(image_png).decode("ascii")
+        resp = self._client_().messages.create(
+            model=self.model, max_tokens=2000, system=system,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                {"type": "text", "text": user}]}],
+            output_config={"format": {"type": "json_schema", "schema": schema}, "effort": self.effort})
+        text = next(b.text for b in resp.content if b.type == "text")
+        return json.loads(text)

@@ -46,7 +46,8 @@ class DiscoveryConfig:
     # Layer 3 (verify)
     verify_max_steps: int = 12          # per-scenario crawl ceiling (the cage)
     verify_expand: bool = True          # bind unresolved steps to live-discovered controls
-    verify_matcher: str = "heuristic"   # "heuristic" | "llm"
+    verify_matcher: str = "heuristic"   # "heuristic" | "llm" | "vision"
+    vision_model: str = "claude-opus-4-8"
     live_locale: str = "en"             # extract strips [locale]; verify re-inserts it for live URLs
     live_scopes: list = field(default_factory=lambda: ["admin", "member"])
 
@@ -74,6 +75,7 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
         verify_expand=str(os.environ.get("TRAINGEN_VERIFY_EXPAND", d.get("verify_expand", "1"))).lower()
         not in ("0", "false", "no"),
         verify_matcher=os.environ.get("TRAINGEN_VERIFY_MATCHER", d.get("verify_matcher", "heuristic")),
+        vision_model=os.environ.get("TRAINGEN_VISION_MODEL", d.get("vision_model", "claude-opus-4-8")),
         live_locale=os.environ.get("TRAINGEN_LIVE_LOCALE", d.get("live_locale", "en")),
         live_scopes=d.get("live_scopes") or ["admin", "member"],
     )

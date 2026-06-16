@@ -128,7 +128,7 @@ work:
 
 | Milestone | Deliverable | Proves | Offline-testable |
 |---|---|---|---|
-| **M1 — VisionMatcher (C1)** | `complete_vision` + `VisionMatcher` + `elementFromPoint` grounding; wired into L3 | vision lifts binding on the unbound announcements/applications steps | stub matcher offline; real grounding test in headless Chromium (installed) |
+| **M1 — VisionMatcher (C1)** — DONE (core) | `llm.complete_vision` + `VisionMatcher` (picks among DOM candidates by screenshot, binds the durable semantic locator, `crawl-only` provenance, heuristic fallback) wired into L3 as `verify_matcher=vision`; `PlaywrightDriver.screenshot()` + per-control bounding boxes; `tests/test_vision.py` (stub offline + real-Chromium perception smoke). Remaining: `elementFromPoint` grounding for controls the snapshot misses; validate live on the unbound announcements/applications steps. | vision lifts binding on the unbound steps | stub matcher offline ✓; real bbox+screenshot in headless Chromium ✓ |
 | **M2 — Phase 0 dogfood** | one public flow → captioned BG/EN MP4 (OmniVoice) | the end-to-end product works on a real flow | n/a (live, public — no secrets) |
 | **M3 — Visual discovery enrichment (C2)** | screenshot crawl → richer inventory; framework-agnostic | discovery works beyond Next.js | enrichment logic offline; live crawl for real data |
 | **M4 — Visual QA (C3)** | frame-checks feeding the human gate | catches wrong-element/desync | verdict logic offline |

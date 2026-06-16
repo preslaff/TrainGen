@@ -26,6 +26,7 @@ class Config:
     voices: dict
     rec_start_pad_s: float = 0.5
     headless: bool = False
+    browser_args: list = field(default_factory=list)   # Chromium launch flags (e.g. --disable-gpu)
     tts_backend: str = "offline"   # "offline" (espeak-ng) | "omnivoice"
     login: dict | None = None      # optional auth block (see record.login)
     dismiss: list = field(default_factory=list)   # pre-roll overlays to close (cookie banner, etc.)
@@ -44,6 +45,13 @@ def _env_or(d, manifest_key, env_key, default):
     """Precedence: TRAINGEN_* env (incl. .env) > manifest defaults > hardcoded default."""
     v = os.environ.get(env_key)
     return v if v is not None else d.get(manifest_key, default)
+
+
+def _browser_args(d) -> list:
+    v = os.environ.get("TRAINGEN_BROWSER_ARGS")        # comma-separated, e.g. "--disable-gpu,--disable-dev-shm-usage"
+    if v is not None:
+        return [a.strip() for a in v.split(",") if a.strip()]
+    return d.get("browser_args", [])
 
 
 def _viewport(d) -> dict:
@@ -69,6 +77,7 @@ def load_config(path=MANIFEST) -> Config:
         voices=d.get("voices", {}),
         rec_start_pad_s=float(_env_or(d, "rec_start_pad_s", "TRAINGEN_REC_START_PAD_S", 0.5)),
         headless=str(_env_or(d, "headless", "TRAINGEN_HEADLESS", "0")).lower() in ("1", "true", "yes"),
+        browser_args=_browser_args(d),
         tts_backend=_env_or(d, "tts_backend", "TRAINGEN_TTS", "offline"),
         login=d.get("login"),
         dismiss=d.get("dismiss", []),

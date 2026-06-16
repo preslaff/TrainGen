@@ -47,12 +47,15 @@ def test_config_reads_env(monkeypatch=None):
     os.environ["TRAINGEN_FPS"] = "48"
     os.environ["TRAINGEN_VIEWPORT"] = "1280x720"
     os.environ["TRAINGEN_TTS"] = "omnivoice"
+    os.environ["TRAINGEN_HEADLESS"] = "1"
+    os.environ["TRAINGEN_BROWSER_ARGS"] = "--disable-gpu, --disable-dev-shm-usage"
     cfg = config.load_config()
     assert cfg.fps == 48 and cfg.viewport == {"width": 1280, "height": 720}
-    assert cfg.tts_backend == "omnivoice"
-    for k in ("TRAINGEN_FPS", "TRAINGEN_VIEWPORT", "TRAINGEN_TTS"):
+    assert cfg.tts_backend == "omnivoice" and cfg.headless is True
+    assert cfg.browser_args == ["--disable-gpu", "--disable-dev-shm-usage"]
+    for k in ("TRAINGEN_FPS", "TRAINGEN_VIEWPORT", "TRAINGEN_TTS", "TRAINGEN_HEADLESS", "TRAINGEN_BROWSER_ARGS"):
         os.environ.pop(k, None)
-    print("OK  config: load_config honours TRAINGEN_* (fps, viewport, tts)")
+    print("OK  config: load_config honours TRAINGEN_* (fps, viewport, tts, headless, browser_args)")
 
 
 def main() -> int:

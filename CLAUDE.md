@@ -52,7 +52,7 @@ The full chain runs **once per language**. BG and EN narration durations differ 
 
 ## Conventions and constraints
 
-- **Recording is headed Chromium** (`headless=False`) for real rendering, at fixed 1920×1080@30fps.
+- **Recording is Chromium at fixed 1920×1080@30fps.** Headed (`headless=False`) gives the truest rendering, but **headed Chromium can hard-freeze some GPUs** (confirmed amdgpu/Polaris display hang: `flip_done timed out`). Prefer `TRAINGEN_HEADLESS=1` + `TRAINGEN_BROWSER_ARGS=--disable-gpu,--disable-dev-shm-usage` on AMD/older GPUs; both are `.env`-configurable (`cfg.browser_args` → `chromium.launch(args=…)`).
 - **Overlays (cursor/highlight/zoom) are injected DOM nodes** (`page.add_init_script`), so they're frame-accurate in any capture. Zoom is a CSS transform on `<html>`, not FFmpeg `zoompan`.
 - aeneas language codes: Bulgarian = `bul`, English = `eng`. CPU-only.
 - **Never record against production.** Use a seeded demo tenant on staging; reset before each run.

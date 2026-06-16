@@ -145,7 +145,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
     }
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=cfg.headless)
+        browser = p.chromium.launch(headless=cfg.headless, args=cfg.browser_args or [])
         ctx = browser.new_context(
             base_url=cfg.base_url,
             viewport=cfg.viewport,

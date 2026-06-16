@@ -307,7 +307,8 @@ class PlaywrightDriver:
         self._cfg = prod_cfg
         self._locale, self._scopes = locale, scopes
         self._pw = sync_playwright().start()
-        self._browser = self._pw.chromium.launch(headless=prod_cfg.headless)
+        self._browser = self._pw.chromium.launch(headless=prod_cfg.headless,
+                                                 args=getattr(prod_cfg, "browser_args", []) or [])
         self._ctx = self._browser.new_context(base_url=prod_cfg.base_url, viewport=prod_cfg.viewport)
         self.page = self._ctx.new_page()
         rec.login(self.page, role, prod_cfg)

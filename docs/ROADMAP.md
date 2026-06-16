@@ -106,22 +106,27 @@ EN language path exercised end to end.
 
 ---
 
-## v0.3 — subtitles + intro/outro (shippable)
+## v0.3 — subtitles + intro/outro (shippable) — DONE
 
 **Deliverable:** a help-center-ready video: soft VTT sidecar per language + branded
 intro/outro.
 
-**Work:**
-- `traingen/subtitle.py`: aeneas forced alignment per step (lang codes `bul`/`eng`),
-  shift each fragment by its `measured_start` (from `record_log.json`), concatenate to one
-  `final.<lang>.vtt`. (No transcription — we know the text.)
-- `compose.py`: add intro/outro concat (normalize assets to `1920x1080@30 h264/aac` first),
-  keep the VTT as a sidecar (no hard-burn for help center).
-- `assets/{intro,outro}_{bg,en}.mp4`.
-- Wire `subtitle` into the `run.py` chain between record and compose.
+**Done:**
+- `traingen/subtitle.py`: per-step VTT cues (default, deterministic — each step's narration
+  spans its measured [start,end]; no dependency), with an optional `aeneas` aligner
+  (`subtitles: aeneas`, lang codes bul/eng) for finer fragment timing shifted by
+  `measured_start`. Emits `final.<lang>.vtt`. `tests/test_subtitle.py`.
+- `compose.py`: builds the body (adelay+mux), then if `assets/{intro,outro}_<lang>.mp4`
+  exist, normalizes each segment to a canonical 1920x1080@fps h264 / 48k-stereo-aac (keeps
+  source audio; synthesizes silence only for video-only bumpers) and concats with the
+  demuxer. No bumpers → the body is the final. `tests/test_compose.py` (synthesizes clips
+  with ffmpeg).
+- `subtitle` wired into `run.py` between record and compose; `assets/README.md` documents
+  the bumper naming. VTT is a soft sidecar — not hard-burned.
 
-**Files:** `traingen/subtitle.py`, `traingen/compose.py`, `run.py`, `assets/*.mp4`.
-**Proves:** the output is shippable to the help center.
+**Files:** `traingen/subtitle.py`, `traingen/compose.py`, `run.py`, `assets/`,
+`tests/{test_subtitle,test_compose}.py`.
+**Proves:** the output is shippable to the help center (switchable BG/EN captions + branding).
 **Depends on:** v0.2.
 
 ---

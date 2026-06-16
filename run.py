@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 
-from traingen import choreograph, compose, config, narrate, record, script
+from traingen import choreograph, compose, config, narrate, record, script, subtitle
 
 
 def run_one(scenario_id: str, lang: str, cfg: config.Config) -> None:
@@ -22,8 +22,9 @@ def run_one(scenario_id: str, lang: str, cfg: config.Config) -> None:
     print(f"{tag} narrate");      ndoc = narrate.run(sdoc, cfg)
     print(f"{tag} choreograph");  tl = choreograph.run(scenario, ndoc, cfg)
     print(f"{tag} record");       rlog = record.run(scenario, tl, cfg)
+    print(f"{tag} subtitle");     vtt = subtitle.run(sdoc, ndoc, rlog, cfg)
     print(f"{tag} compose");      final = compose.run(rlog, ndoc, cfg)
-    print(f"{tag} done -> {final}")
+    print(f"{tag} done -> {final}  (+ {vtt.name})")
 
 
 def main() -> None:

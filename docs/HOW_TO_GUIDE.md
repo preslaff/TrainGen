@@ -15,8 +15,8 @@ Each section is tagged so you know what is real versus planned:
 - **[planned vX.Y]** — designed, not yet built; lands in that ROADMAP milestone.
 
 Current baseline: production chain (offline-proven) + demo-mode overlays (v0.2) + the full
-discovery pipeline (extract → synthesize → verify+expand → human-gate merge). Subtitles,
-intro/outro, and the CI loop are not yet built.
+discovery pipeline (extract → synthesize → verify+expand → human-gate merge) + per-language
+subtitles and intro/outro (v0.3). The CI release loop is not yet built.
 
 ---
 
@@ -157,7 +157,8 @@ Everything lands under `out/<scenario_id>/<lang>/`:
 | `timeline.json` | Predicted dwell durations |
 | `video.webm` | Raw Playwright capture |
 | `record_log.json` | Measured per-step offsets (pins the audio) |
-| `final.mp4` | The finished video |
+| `final.mp4` | The finished video (intro/outro bumpers concatenated if present in `assets/`) |
+| `final.<lang>.vtt` | Soft subtitle sidecar (per-step cues, or aeneas-aligned) |
 
 `out/` is gitignored.
 
@@ -187,8 +188,10 @@ These are designed and will get their own sections here as they ship:
 - **Overlays** — animated cursor, highlight ring, zoom. **[available]** — DOM-node overlays
   in `traingen/overlays/`, injected by `record.py`; the `emphasis` field per step
   (`highlight`/`zoom`) drives them. Validated by `tests/test_overlays.py` in real Chromium.
-- **Subtitles** — soft VTT sidecar per language via aeneas. **[planned v0.3]**
-- **Intro/outro** — branded bookends in compose. **[planned v0.3]**
+- **Subtitles** — soft `final.<lang>.vtt` sidecar. **[available]** — per-step cues by
+  default (no dep); set `subtitles: aeneas` in the manifest defaults for finer alignment.
+- **Intro/outro** — branded bookends. **[available]** — drop `assets/{intro,outro}_<lang>.mp4`
+  and compose concats them around the body (see `assets/README.md`).
 - **CI loop** — regenerate only changed videos on a release tag. **[planned v0.5]**
 
 ---

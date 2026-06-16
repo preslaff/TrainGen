@@ -1,7 +1,8 @@
 PyYAML>=6.0
 playwright>=1.40
 soundfile>=0.12
-anthropic>=0.40        # discovery Layer 2 (synthesize); needs ANTHROPIC_API_KEY
+anthropic>=0.40        # discovery Layer 2 + per-language script narration; needs ANTHROPIC_API_KEY
+# aeneas               # optional: finer subtitle alignment (subtitles: aeneas). default is per-step VTT, no dep
 
 # TTS backend — pick one (set TRAINGEN_TTS):
 #   offline  (default): system `espeak-ng` for audible output, else silent WAVs.

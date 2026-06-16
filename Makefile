@@ -37,6 +37,8 @@ test:      ## run all offline tests
 	python -m tests.test_discover
 	python -m tests.test_overlays
 	python -m tests.test_script
+	python -m tests.test_subtitle
+	python -m tests.test_compose
 
 clean:
 	rm -rf out/*

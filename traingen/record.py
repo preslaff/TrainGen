@@ -29,16 +29,17 @@ def ready(page) -> None:
         pass
 
 
-def dismiss_overlays(page, locators) -> None:
+def dismiss_overlays(page, locators, timeout_ms: int = 6000) -> None:
     """Best-effort close of pre-roll overlays (cookie consent, etc.) BEFORE recording timing
     starts — so they never become a taught step and don't blur/obscure the recorded flow.
-    Each is a semantic locator; click it only if present and visible; never fail the run."""
+    Each is a semantic locator; WAIT for it to appear (consent banners often mount a few
+    seconds after load), then click. If it never appears, skip; never fail the run."""
     for loc in locators or []:
         try:
-            found = resolve_locator(page, loc)
-            if found.count() > 0 and found.first.is_visible():
-                found.first.click(timeout=2000)
-                page.wait_for_timeout(400)
+            el = resolve_locator(page, loc).first
+            el.wait_for(state="visible", timeout=timeout_ms)   # raises if it never shows -> skip
+            el.click(timeout=2000)
+            page.wait_for_timeout(400)
         except Exception:
             pass
 

@@ -77,13 +77,14 @@ def test_do_action_dispatch():
 
 
 class FakeLoc:
-    def __init__(self, count, visible, sink):
-        self._count, self._visible, self.sink = count, visible, sink
+    def __init__(self, appears, sink):
+        self._appears, self.sink = appears, sink
 
-    def count(self): return self._count
     @property
     def first(self): return self
-    def is_visible(self): return self._visible
+    def wait_for(self, state=None, timeout=None):
+        if not self._appears:
+            raise Exception("timeout waiting for overlay")   # never shows -> skipped
     def click(self, timeout=None): self.sink.append("clicked")
 
 
@@ -91,21 +92,21 @@ def test_dismiss_overlays(monkeypatch=None):
     orig = record.resolve_locator
     try:
         sink = []
-        record.resolve_locator = lambda page, loc: FakeLoc(1, True, sink)
+        record.resolve_locator = lambda page, loc: FakeLoc(True, sink)
         record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "Accept All"}])
-        assert sink == ["clicked"], "present + visible overlay is clicked"
+        assert sink == ["clicked"], "overlay that appears (even late) is clicked"
 
         absent = []
-        record.resolve_locator = lambda page, loc: FakeLoc(0, False, absent)
-        record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "Accept All"}])
-        assert absent == [], "absent overlay is skipped (no error)"
+        record.resolve_locator = lambda page, loc: FakeLoc(False, absent)
+        record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "Accept All"}], timeout_ms=10)
+        assert absent == [], "overlay that never appears is skipped (no error)"
 
         def boom(page, loc): raise RuntimeError("nope")
         record.resolve_locator = boom
         record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "x"}])  # must not raise
     finally:
         record.resolve_locator = orig
-    print("OK  dismiss_overlays: clicks present overlays, skips absent, swallows errors")
+    print("OK  dismiss_overlays: waits for late overlays, clicks them, skips/ swallows the rest")
 
 
 def main() -> int:

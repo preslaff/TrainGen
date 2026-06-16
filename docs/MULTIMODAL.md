@@ -1,0 +1,161 @@
+# MULTIMODAL.md — Visual Understanding & Productization Plan
+
+**Addendum to `DESIGN.md`.** Plans (a) multimodal/visual understanding of the target app —
+using screenshots so an LLM comprehends the GUI and binds steps the code/DOM can't describe
+— and (b) the path from "documents my app" to "a product that documents other apps." No
+implementation here; this is the design + sequenced roadmap to review before building.
+
+Context: across live runs the pipeline works end to end; the quality ceiling is **UI
+understanding** (zero `data-testid`s, i18n-key labels, placeholder-named fields, runtime
+sub-steps, API-noun ≠ UI-noun). Every real binding failure was an understanding failure.
+Vision targets exactly that.
+
+---
+
+## 1. Principles (what constrains the design)
+
+1. **Vision lives only in the non-deterministic layers.** Layer 1 Extract stays
+   byte-deterministic (it is the CI diff anchor). Vision belongs in Layer 3 (verify/expand),
+   an optional discovery-enrichment pass, and recording QA — where agency already lives.
+2. **Locator philosophy = vision understands, the semantic tree provides the durable
+   locator (hybrid).** Vision *chooses* the element; we store a DOM/accessibility selector
+   (testid › role+name › label). Pixel/coordinate locators are an explicit, fragility-tagged
+   escape hatch for genuinely non-semantic UIs (canvas/games), never the default. Rationale
+   and worked examples: see the locator discussion that produced this plan.
+3. **Reuse the seams we already have.** The pluggable matcher interface
+   (`get_matcher`, `HeuristicMatcher`/`LLMMatcher`), the `Driver` protocol, provenance, and
+   `.env` config all extend naturally — vision is additive, not a rewrite.
+4. **Targeted, not blanket.** Images are token-heavy; vision is a *fallback* (when DOM
+   matching fails) or an *opt-in enrichment pass*, cached — never one call per step by default.
+
+---
+
+## 2. The three vision capabilities (priority order)
+
+### C1 — VisionMatcher: bind steps the DOM names badly (the wedge)
+A new matcher alongside heuristic/llm. When a step won't resolve, screenshot the page, send
+Claude the image + step intent + the DOM control list (each with its bounding box), ask
+*which control performs this step*. Fixes icon-only buttons, placeholder-named fields,
+data-named rows — the announcements/applications failures. **Lowest risk, highest immediate
+value; validates the whole thesis cheaply.**
+
+### C2 — Visual discovery enrichment: framework-agnostic feature comprehension (the product lever)
+A crawl pass that screenshots each route and asks *what feature is this, what can a user do,
+what's the primary action* — augmenting the inventory with semantics the code can't give
+(bridges API-noun↔UI-noun, reads rendered BG/EN instead of i18n keys). **Strategic
+importance:** today Layer 1 is locked to FastAPI+**Next.js**; a vision/accessibility crawl is
+**framework-agnostic**, so this is what lets TrainGen work on apps we didn't write a parser
+for — the precondition for selling it.
+
+### C3 — Visual QA of recordings: catch what the timing model can't
+Sample a frame at each step's `measured_start`, screenshot, ask *does the visible state match
+the step intent + narration; did the action succeed; is the right element highlighted*. Feeds
+the human gate with visual evidence; catches wrong-element/desync bugs structurally invisible
+to predict-vs-measure.
+
+---
+
+## 3. The grounding mechanism (vision → durable DOM locator)
+
+The core trick that keeps locators durable while using vision to find elements:
+
+1. `driver.screenshot()` the viewport (track `devicePixelRatio` for pixel→CSS mapping).
+2. Send Claude (Opus 4.8, multimodal) the PNG + step intent + DOM candidates (role, name,
+   `getBoundingClientRect`). Ask for the chosen candidate index, or a bounding box.
+3. `document.elementFromPoint(centerX, centerY)` → the real DOM node under that point.
+4. Read that node's attributes → store the **most durable semantic locator** (testid ›
+   role+name › label). If nothing stable exists → record a fragile/coords locator AND emit a
+   **test-id gap** so the platform can make it durable (the §11 ask, evidence-driven).
+
+So pixels are used only to *identify*; the persisted artifact is a semantic selector that
+survives re-layout/restyle on the next release. Opus 4.7+ high-res vision returns
+pixel-accurate coordinates, which makes step 3 reliable.
+
+---
+
+## 4. Components to build (and where they plug in)
+
+| Component | Where | Notes |
+|---|---|---|
+| `AnthropicBackend.complete_vision(system, user, image)` | `traingen/llm.py` | image content block; reused by C1–C3 |
+| `VisionMatcher` | `traingen/discovery/verify.py` | new `get_matcher` option `vision`; grounding via `elementFromPoint` |
+| `PlaywrightDriver.screenshot()` + control bboxes | `verify.py` | `snapshot()` already returns controls; add `getBoundingClientRect` |
+| Visual enrichment pass | `traingen/discovery/` (new, optional) | screenshots → inventory `visual_features`; never feeds L1 hash |
+| Visual QA checker | post-`record` (new, optional) | frame sample → verdicts → human gate |
+| Config | `.env` | `TRAINGEN_VERIFY_MATCHER=vision`, `TRAINGEN_VISION_MODEL`, enrichment/QA toggles |
+
+**Provenance:** a vision-bound step is `crawl-only` (most fragile tier) → always surfaced for
+human review. **Caching:** vision results keyed on `(screenshot hash, step, candidates)` so
+re-runs don't re-pay. **Determinism:** none of this touches L1 / `inventory_hash`.
+
+---
+
+## 5. Platform generalization (kept in view, not built yet)
+
+The product ambition means not staying web-locked. The architecture already points the way;
+formalize three seams when native is on the table:
+- **Driver** (automate): `PlaywrightDriver` (web) → `AppiumDriver` (Windows UIA / Android
+  resource-id / iOS / macOS — semantic locators, same hybrid philosophy) → `ComputerUseDriver`
+  (Claude computer-use, pure vision+coords, for no-accessibility UIs).
+- **Recorder** (capture): browser webm → OS screen capture (gdigrab/scrcpy/x11grab/AVFoundation).
+- **Overlay**: DOM injection → **post-composite** cursor/highlight/zoom in FFmpeg using the
+  measured offsets + target bboxes (more uniform across platforms).
+
+The production half (script/narrate/choreograph/subtitle/compose + the timing model) is
+already platform-agnostic. Vision (C2) is what makes *discovery* platform-agnostic.
+
+---
+
+## 6. Phase 0 — dogfood on PUBLIC tourist flows (the unblock)
+
+The platform is usable anonymously (browse/discover, the **chatbot**, the **itinerary
+scheduler**) — **no login, no seeded tenant, no OTP.** So Phase 0 needs none of the auth
+work:
+- Target 1–2 **public** flows (e.g. "plan a trip with the itinerary scheduler", "ask the
+  concierge chatbot") — public Next.js routes + public OpenAPI endpoints.
+- Run discovery (extract public surface → synthesize → verify **with VisionMatcher** →
+  human-gate merge), then record (no login) → narrate (OmniVoice BG/EN) → subtitle → compose.
+- Output: a real captioned, dual-language MP4 — your deliverable *and* your demo reel.
+- **Dynamic-content caveat:** chatbot/scheduler stream responses; recording must wait for the
+  reply to settle before dwelling/advancing (a `wait_for`-style settle per step). Handle in
+  `record`/`choreograph` (the timing model already separates dwell from measured offsets).
+- **Member dashboard:** deferred until you develop a non-OTP (or API-token) login; then the
+  same pipeline extends to member/admin flows.
+
+---
+
+## 7. Sequenced roadmap
+
+| Milestone | Deliverable | Proves | Offline-testable |
+|---|---|---|---|
+| **M1 — VisionMatcher (C1)** | `complete_vision` + `VisionMatcher` + `elementFromPoint` grounding; wired into L3 | vision lifts binding on the unbound announcements/applications steps | stub matcher offline; real grounding test in headless Chromium (installed) |
+| **M2 — Phase 0 dogfood** | one public flow → captioned BG/EN MP4 (OmniVoice) | the end-to-end product works on a real flow | n/a (live, public — no secrets) |
+| **M3 — Visual discovery enrichment (C2)** | screenshot crawl → richer inventory; framework-agnostic | discovery works beyond Next.js | enrichment logic offline; live crawl for real data |
+| **M4 — Visual QA (C3)** | frame-checks feeding the human gate | catches wrong-element/desync | verdict logic offline |
+| **M5 — Curation UI / control plane** | review surface (screenshots + provenance + ship-list) | humans steer, not edit YAML | — |
+| **M6 — Native seams (Driver/Recorder/Overlay)** | Appium + computer-use drivers | other platforms | — |
+
+M1 → M2 is the critical path to a shipped video. M3 is the productization bet. M5–M6 are
+product build-out, after value is proven.
+
+---
+
+## 8. Risks & decisions
+
+- **Coordinate fragility** → mitigated by hybrid (semantic locator persisted), coords only as
+  flagged escape hatch.
+- **Cost/latency** → vision targeted + cached; never default per-step.
+- **Hallucination** → vision-bound = `crawl-only` provenance, always human-reviewed.
+- **Dynamic content** (chatbot/scheduler) → per-step settle/wait before timing.
+- **devicePixelRatio / scroll** → normalize screenshot pixels → CSS px before `elementFromPoint`.
+- **Privacy (product)** → screenshots may contain PII; a product needs retention/redaction policy.
+- **Adoption friction (product)** → seeded tenant + automatable login remain the gate for
+  *mutating/authenticated* flows; vision removes the test-id ask but not these.
+
+---
+
+## 9. What stays unchanged
+
+The matcher interface, provenance model, `.env` config, the timing model, the SSOT schema,
+and the entire production half. Vision is an additive perception layer in the agentic tiers —
+not a redesign.

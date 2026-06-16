@@ -32,10 +32,15 @@ v0.1 (done) ─▶ v0.1-live ─▶ v0.2 ─▶ v0.3 ─▶ v0.4 ─▶ v0.5
 
 ---
 
+> **Revised target (see `docs/MULTIMODAL.md`):** dogfood Phase 0 on **public tourist flows**
+> (browse, chatbot, itinerary scheduler) — anonymous, **no login/tenant/OTP** — so the first
+> real video doesn't wait on auth. Multimodal understanding (vision) is planned as the
+> binding + framework-agnostic-discovery layer and the path to productizing TrainGen.
+
 ## v0.1-live — validate against the real platform
 
-**Deliverable:** record `add-partner-profile` (BG) against the real staging demo tenant,
-start to finish, producing a synced `final.mp4`.
+**Deliverable:** a real synced `final.mp4` for a **public** flow (no auth); the
+`add-partner-profile`/member flows follow once a non-OTP login exists.
 
 **Work:**
 - Set `TRAINGEN_BASE_URL` to staging; add the `login:` block to `manifest/scenarios.yaml`

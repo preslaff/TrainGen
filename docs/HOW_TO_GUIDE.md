@@ -68,32 +68,35 @@ ffprobes the result. A passing run prints the step count, duration, and codecs.
 
 ## 4. Configure for a target app **[available]**
 
-Configuration comes from the `defaults:` block of `manifest/scenarios.yaml`, with a few
-environment overrides.
+All tunable parameters and secrets live in a repo-root **`.env`** (autoloaded — no
+dependency). Create it once and edit:
 
-Key settings in `defaults:`:
-- `base_url` — the target app's **staging** URL (never production).
-- `viewport`, `fps`, `cursor_travel_s`, `tail_pad_s` — capture/timing knobs.
-- `langs` — e.g. `[bg, en]`.
-- `voices` — fixed voice per language for library consistency.
-- `login:` — optional auth block so the recorder can sign in (see below).
+```bash
+make env          # copies .env.example -> .env
+```
 
-Environment overrides:
-- `TRAINGEN_BASE_URL` — override `base_url` per run.
-- `TRAINGEN_TTS` — `offline` (default) or `omnivoice`.
-- `TRAINGEN_HEADLESS` — `1` to run the browser headless (default headed for real rendering).
+`.env.example` documents every parameter, grouped: secrets (`ANTHROPIC_API_KEY`,
+`TRAINGEN_ADMIN_PASSWORD`), platform target (`TRAINGEN_BASE_URL`, `TRAINGEN_HEADLESS`),
+pipeline knobs (`TRAINGEN_VIEWPORT`, `TRAINGEN_FPS`, `TRAINGEN_CURSOR_TRAVEL_S`,
+`TRAINGEN_LANGS`, …), TTS (`TRAINGEN_TTS`), subtitles (`TRAINGEN_SUBTITLES`), script
+narration (`TRAINGEN_SCRIPT_*`), and discovery (`TRAINGEN_OPENAPI_URL`,
+`TRAINGEN_FRONTEND_APP`, `TRAINGEN_SYNTH_*`, `TRAINGEN_VERIFY_*`, `TRAINGEN_LIVE_LOCALE`).
 
-**Login block** (add under `defaults:` if the app requires auth):
+**Precedence:** real shell env > `.env` file > manifest `defaults:` > built-in default. So
+you can pin everything in `.env` and still override per-run with an inline env var. The
+real `.env` is gitignored — keep secrets there, never in the manifest or git.
+
+**Structured config stays in `manifest/scenarios.yaml`** (`defaults:`): the per-language
+`voices` map and the per-role `login:` block (selectors only; credentials come from
+`TRAINGEN_<ROLE>_PASSWORD`). Example login block:
 
 ```yaml
 login:
-  route: /login
-  user_label: "Email"
-  pass_label: "Password"
-  submit_name: "Sign in"
-  users:
-    admin:  { username: "...", password: "..." }
-    member: { username: "...", password: "..." }
+  admin:
+    route: "/admin/en/login"
+    fields:
+      - { locator: { placeholder: "Enter admin key" }, from_env: TRAINGEN_ADMIN_PASSWORD }
+    submit: { role: button, name: "Sign In" }
 ```
 
 If no `login:` block is present, recording starts directly at the scenario's `entry_route`.

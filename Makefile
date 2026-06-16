@@ -1,8 +1,11 @@
-.PHONY: install seed run-one selftest extract test clean
+.PHONY: install env seed run-one selftest extract synthesize verify discover merge test clean
 
 install:   ## python deps + Chromium
 	pip install -r requirements.txt
 	python -m playwright install chromium
+
+env:       ## create .env from the template (edit it to configure the system)
+	@test -f .env && echo ".env exists" || (cp .env.example .env && echo "created .env — edit it")
 
 seed:      ## reset demo tenant to a known state (BLUEPRINT §11)
 	./scripts/reset_demo_tenant.sh
@@ -39,6 +42,7 @@ test:      ## run all offline tests
 	python -m tests.test_script
 	python -m tests.test_subtitle
 	python -m tests.test_compose
+	python -m tests.test_env
 
 clean:
 	rm -rf out/*

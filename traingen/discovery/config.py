@@ -70,6 +70,10 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
         scope_segments=d.get("scope_segments") or list(DEFAULT_SCOPE_SEGMENTS),
         synth_model=os.environ.get("TRAINGEN_SYNTH_MODEL", d.get("synth_model", "claude-opus-4-8")),
         synth_effort=os.environ.get("TRAINGEN_SYNTH_EFFORT", d.get("synth_effort", "medium")),
+        verify_max_steps=int(os.environ.get("TRAINGEN_VERIFY_MAX_STEPS", d.get("verify_max_steps", 12))),
+        verify_expand=str(os.environ.get("TRAINGEN_VERIFY_EXPAND", d.get("verify_expand", "1"))).lower()
+        not in ("0", "false", "no"),
+        verify_matcher=os.environ.get("TRAINGEN_VERIFY_MATCHER", d.get("verify_matcher", "heuristic")),
         live_locale=os.environ.get("TRAINGEN_LIVE_LOCALE", d.get("live_locale", "en")),
         live_scopes=d.get("live_scopes") or ["admin", "member"],
     )

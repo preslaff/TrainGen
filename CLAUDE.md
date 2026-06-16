@@ -13,7 +13,7 @@ TrainGen is an auto-generated, narrated, dual-language (BG + EN) video training 
 - `make install` — pip deps + `playwright install chromium`.
 - `make selftest` (or `python -m tests.test_timing`) — **proves the timing model offline**: runs the real script/narrate/choreograph/compose stages against a synthetic video + fabricated `record_log.json`, then ffprobes the result. No platform or browser needed. Run this after touching timing or compose.
 - `make run-one` — the v0.1 target: `python run.py --scenario add-partner-profile --lang bg`. Needs a live staging target (set `TRAINGEN_BASE_URL`) and Chromium.
-- Env knobs: `TRAINGEN_BASE_URL`, `TRAINGEN_TTS` (`offline` default | `omnivoice`), `TRAINGEN_HEADLESS=1`.
+- **Config: repo-root `.env`** (autoloaded by `traingen/env.py`, no dep). `make env` copies `.env.example`. Every scalar/secret is a `TRAINGEN_*` var (or `ANTHROPIC_API_KEY`); precedence is shell env > `.env` > manifest `defaults:` > built-in. `.env` is gitignored. Structured blocks (`voices`, `login` selectors) stay in `manifest/scenarios.yaml`; login credentials come from `TRAINGEN_<ROLE>_PASSWORD`.
 
 **External deps:** `ffmpeg` (compose) and, for audible offline narration, `espeak-ng` — without it the offline TTS backend emits silent WAVs sized by word count (timing still valid, just no audio). `omnivoice` backend needs `pip install omnivoice torch` and a GPU.
 

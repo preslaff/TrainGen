@@ -110,9 +110,13 @@ already platform-agnostic. Vision (C2) is what makes *discovery* platform-agnost
 
 The platform is usable anonymously (browse/discover, the **chatbot**, the **itinerary
 scheduler**) — **no login, no seeded tenant, no OTP.** So Phase 0 needs none of the auth
-work:
-- Target 1–2 **public** flows (e.g. "plan a trip with the itinerary scheduler", "ask the
-  concierge chatbot") — public Next.js routes + public OpenAPI endpoints.
+work.
+
+**Chosen first flow: the concierge chatbot** — "ask the concierge a travel question." It's a
+single screen (input + send + read the reply), public, no wizard, no seeded record — so
+VisionMatcher already binds it and there's nothing blocking a complete first video. The
+multi-screen apply form and admin CRUD wait for sub-step insertion + seeded data.
+- Target the **public** chatbot route — public Next.js route + the concierge endpoints.
 - Run discovery (extract public surface → synthesize → verify **with VisionMatcher** →
   human-gate merge), then record (no login) → narrate (OmniVoice BG/EN) → subtitle → compose.
 - Output: a real captioned, dual-language MP4 — your deliverable *and* your demo reel.
@@ -128,8 +132,8 @@ work:
 
 | Milestone | Deliverable | Proves | Offline-testable |
 |---|---|---|---|
-| **M1 — VisionMatcher (C1)** — DONE (core) | `llm.complete_vision` + `VisionMatcher` (picks among DOM candidates by screenshot, binds the durable semantic locator, `crawl-only` provenance, heuristic fallback) wired into L3 as `verify_matcher=vision`; `PlaywrightDriver.screenshot()` + per-control bounding boxes; `tests/test_vision.py` (stub offline + real-Chromium perception smoke). Remaining: `elementFromPoint` grounding for controls the snapshot misses; validate live on the unbound announcements/applications steps. | vision lifts binding on the unbound steps | stub matcher offline ✓; real bbox+screenshot in headless Chromium ✓ |
-| **M2 — Phase 0 dogfood** | one public flow → captioned BG/EN MP4 (OmniVoice) | the end-to-end product works on a real flow | n/a (live, public — no secrets) |
+| **M1 — VisionMatcher (C1)** — DONE & VALIDATED | `llm.complete_vision` + `VisionMatcher` (picks among DOM candidates by screenshot, binds the durable semantic locator, `crawl-only` provenance, heuristic fallback) wired into L3 as `verify_matcher=vision`; `PlaywrightDriver.screenshot()` + per-control bounding boxes; `tests/test_vision.py`. **Live result on /partner/apply: 2/7 → 4/7 bound** — vision bound the placeholder-named fields heuristics couldn't (business name "e.g. Hotel Residence Plovdiv", phone "+359…"). Remaining gaps are NOT vision: wizard sub-steps (screen 3 not rendered) and seeded data (empty admin list). | ✅ vision lifts binding on the exact bad-name failures | stub offline ✓; real bbox+screenshot in Chromium ✓; live ✓ |
+| **M2 — Phase 0 dogfood: concierge chatbot** | the **chatbot concierge** flow (single-screen, public, no login/wizard/seed) → captioned BG/EN MP4 (OmniVoice) | end-to-end product works on a real flow | n/a (live, public — no secrets) |
 | **M3 — Visual discovery enrichment (C2)** | screenshot crawl → richer inventory; framework-agnostic | discovery works beyond Next.js | enrichment logic offline; live crawl for real data |
 | **M4 — Visual QA (C3)** | frame-checks feeding the human gate | catches wrong-element/desync | verdict logic offline |
 | **M5 — Curation UI / control plane** | review surface (screenshots + provenance + ship-list) | humans steer, not edit YAML | — |

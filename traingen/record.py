@@ -29,6 +29,20 @@ def ready(page) -> None:
         pass
 
 
+def dismiss_overlays(page, locators) -> None:
+    """Best-effort close of pre-roll overlays (cookie consent, etc.) BEFORE recording timing
+    starts — so they never become a taught step and don't blur/obscure the recorded flow.
+    Each is a semantic locator; click it only if present and visible; never fail the run."""
+    for loc in locators or []:
+        try:
+            found = resolve_locator(page, loc)
+            if found.count() > 0 and found.first.is_visible():
+                found.first.click(timeout=2000)
+                page.wait_for_timeout(400)
+        except Exception:
+            pass
+
+
 def settle(page, quiet_ms: int = 1000, timeout_ms: int = 15000) -> None:
     """Wait until the visible text stops growing for `quiet_ms` (a streamed reply has
     finished), or `timeout_ms`. Robust where networkidle never fires."""
@@ -144,6 +158,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
         login(page, scenario["role"], cfg)
         page.goto(scenario["entry_route"])
         ready(page)
+        dismiss_overlays(page, (cfg.dismiss or []) + scenario.get("dismiss", []))
 
         t0 = time.monotonic()
         page.wait_for_timeout(int(cfg.rec_start_pad_s * 1000))   # rec_start_pad

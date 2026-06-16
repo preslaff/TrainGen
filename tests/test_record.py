@@ -76,10 +76,43 @@ def test_do_action_dispatch():
     print("OK  do_action: press/fill/click on element; navigate+settle are element-less")
 
 
+class FakeLoc:
+    def __init__(self, count, visible, sink):
+        self._count, self._visible, self.sink = count, visible, sink
+
+    def count(self): return self._count
+    @property
+    def first(self): return self
+    def is_visible(self): return self._visible
+    def click(self, timeout=None): self.sink.append("clicked")
+
+
+def test_dismiss_overlays(monkeypatch=None):
+    orig = record.resolve_locator
+    try:
+        sink = []
+        record.resolve_locator = lambda page, loc: FakeLoc(1, True, sink)
+        record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "Accept All"}])
+        assert sink == ["clicked"], "present + visible overlay is clicked"
+
+        absent = []
+        record.resolve_locator = lambda page, loc: FakeLoc(0, False, absent)
+        record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "Accept All"}])
+        assert absent == [], "absent overlay is skipped (no error)"
+
+        def boom(page, loc): raise RuntimeError("nope")
+        record.resolve_locator = boom
+        record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "x"}])  # must not raise
+    finally:
+        record.resolve_locator = orig
+    print("OK  dismiss_overlays: clicks present overlays, skips absent, swallows errors")
+
+
 def main() -> int:
     test_settle_returns_when_text_stabilizes()
     test_settle_times_out_when_text_keeps_growing()
     test_do_action_dispatch()
+    test_dismiss_overlays()
     print("\nall record tests passed")
     return 0
 

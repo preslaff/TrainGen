@@ -14,6 +14,11 @@ defaults:
     bg: "voice_bg_calm"
     en: "voice_en_calm"
 
+  # Pre-roll overlays closed during setup (before recording) so they don't blur/obscure
+  # the flow. Best-effort: clicked only if present+visible. (en-UI cookie consent.)
+  dismiss:
+    - { role: button, name: "Accept All" }
+
   # Per-role login for record/verify. Secrets come from env vars (NEVER committed here):
   #   admin key -> TRAINGEN_ADMIN_PASSWORD. Set TRAINGEN_BASE_URL to the live demo tenant.
   login:

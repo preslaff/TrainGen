@@ -3,7 +3,7 @@ environment variables override the few things that change per machine/run."""
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -28,6 +28,7 @@ class Config:
     headless: bool = False
     tts_backend: str = "offline"   # "offline" (espeak-ng) | "omnivoice"
     login: dict | None = None      # optional auth block (see record.login)
+    dismiss: list = field(default_factory=list)   # pre-roll overlays to close (cookie banner, etc.)
     subtitles: str = "per_step"    # "per_step" | "aeneas"
     # script narration LLM (falls back to echo when no key)
     script_backend: str = "anthropic"   # "anthropic" | "echo"
@@ -70,6 +71,7 @@ def load_config(path=MANIFEST) -> Config:
         headless=str(_env_or(d, "headless", "TRAINGEN_HEADLESS", "0")).lower() in ("1", "true", "yes"),
         tts_backend=_env_or(d, "tts_backend", "TRAINGEN_TTS", "offline"),
         login=d.get("login"),
+        dismiss=d.get("dismiss", []),
         subtitles=_env_or(d, "subtitles", "TRAINGEN_SUBTITLES", "per_step"),
         script_backend=_env_or(d, "script_backend", "TRAINGEN_SCRIPT_BACKEND", "anthropic"),
         script_model=_env_or(d, "script_model", "TRAINGEN_SCRIPT_MODEL", "claude-opus-4-8"),

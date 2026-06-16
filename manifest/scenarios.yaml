@@ -37,6 +37,45 @@ defaults:
 
 scenarios:
 
+  # Phase 0 dogfood — public, no login/tenant/OTP. UI locale: /en (en-UI labels).
+  - scenario_id: concierge-chatbot
+    title:
+      bg: "Запитване към консиержа Вики"
+      en: "Asking the Viki travel concierge"
+    role: public
+    goal: >
+      Show a visitor how to open the Viki travel concierge, ask a question about
+      Bulgaria, and read the assistant's answer.
+    entry_route: "/en"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-chat
+        intent: "Open the Viki concierge from the floating chat button"
+        locator: { role: button, name: "Open chat with Viki" }
+        action: click
+        emphasis: highlight
+        settle_ms: 800
+      - id: type-question
+        intent: "Type a travel question for the concierge"
+        locator: { placeholder: "Ask about Bulgaria..." }
+        action: fill
+        value: "Which Bulgarian towns are best for wine tasting?"
+        emphasis: zoom
+        settle_ms: 500
+      - id: send-question
+        intent: "Send the question to the concierge"
+        locator: { placeholder: "Ask about Bulgaria..." }
+        action: press
+        value: "Enter"
+        emphasis: none
+        settle_ms: 400
+      - id: read-answer
+        intent: "Wait for the concierge to answer and read its reply"
+        action: settle          # streamed reply — dwell until the text stops growing
+        emphasis: none
+        settle_ms: 1500
+
   - scenario_id: add-partner-profile
     title:
       bg: "Добавяне на партньорски профил"

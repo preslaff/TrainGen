@@ -16,6 +16,38 @@ from . import config
 
 OVERLAYS = Path(__file__).parent / "overlays"
 
+# Steps that act on the page, not on a located element (skip cursor/emphasis/box).
+_ELEMENTLESS = {"wait", "settle", "navigate"}
+
+
+def ready(page) -> None:
+    """Wait for the document to be ready. We avoid networkidle: apps with streaming/polling
+    (e.g. a chat warmup) may never reach it, so networkidle would hang the recorder."""
+    try:
+        page.wait_for_load_state("domcontentloaded")
+    except Exception:
+        pass
+
+
+def settle(page, quiet_ms: int = 1000, timeout_ms: int = 15000) -> None:
+    """Wait until the visible text stops growing for `quiet_ms` (a streamed reply has
+    finished), or `timeout_ms`. Robust where networkidle never fires."""
+    import time
+    deadline = time.monotonic() + timeout_ms / 1000.0
+    last, stable_since = None, None
+    while time.monotonic() < deadline:
+        try:
+            size = page.evaluate("() => document.body ? document.body.innerText.length : 0")
+        except Exception:
+            return
+        now = time.monotonic()
+        if size == last:
+            if stable_since is not None and (now - stable_since) * 1000 >= quiet_ms:
+                return
+        else:
+            last, stable_since = size, now
+        page.wait_for_timeout(200)
+
 
 def resolve_locator(page, loc: dict):
     """Semantic locators only — never raw CSS (BLUEPRINT §3)."""
@@ -38,10 +70,15 @@ def do_action(page, el, step: dict) -> None:
         el.select_option(label=step.get("value"))
     elif action == "hover":
         el.hover()
+    elif action == "press":
+        el.press(step.get("value", "Enter"))
     elif action == "wait":
         page.wait_for_timeout(int(step.get("value", 500)))
+    elif action == "settle":
+        settle(page)
     elif action == "navigate":
         page.goto(step.get("value", "/"))
+        ready(page)
     else:
         raise ValueError(f"unknown action: {action}")
 
@@ -66,16 +103,16 @@ def login(page, role: str, cfg: config.Config) -> None:
     if not lc:
         return
     page.goto(lc["route"])
-    page.wait_for_load_state("networkidle")
+    ready(page)
     for f in lc.get("fields", []):
         value = os.environ.get(f["from_env"]) if f.get("from_env") else f.get("value", "")
         if not value:
             return  # missing credential — bail unauthenticated rather than submit a blank form
-        resolve_locator(page, f["locator"]).fill(value)
+        resolve_locator(page, f["locator"]).first.fill(value)
     submit = lc.get("submit")
     if submit:
-        resolve_locator(page, submit).click()
-        page.wait_for_load_state("networkidle")
+        resolve_locator(page, submit).first.click()
+        ready(page)
 
 
 def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
@@ -106,27 +143,30 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
 
         login(page, scenario["role"], cfg)
         page.goto(scenario["entry_route"])
-        page.wait_for_load_state("networkidle")
+        ready(page)
 
         t0 = time.monotonic()
         page.wait_for_timeout(int(cfg.rec_start_pad_s * 1000))   # rec_start_pad
 
         for step in scenario["steps"]:
             start = time.monotonic() - t0
-            el = resolve_locator(page, step["locator"]).first
-            el.scroll_into_view_if_needed()
+            elementless = step.get("action") in _ELEMENTLESS or not step.get("locator")
 
-            box = el.bounding_box()
-            if box:                                              # glide the cursor, then emphasise
-                page.evaluate("(b) => window.__tg && window.__tg.cursorTo(b)", box)
-                page.wait_for_timeout(int(cfg.cursor_travel_s * 1000))
-                emphasis = step.get("emphasis", "none")
-                if emphasis == "highlight":
-                    page.evaluate("(b) => window.__tg && window.__tg.highlight(b)", box)
-                elif emphasis == "zoom":
-                    page.evaluate("(b) => window.__tg && window.__tg.zoom(b, 1.4)", box)
-
-            do_action(page, el, step)
+            if elementless:
+                do_action(page, None, step)                      # wait / settle / navigate
+            else:
+                el = resolve_locator(page, step["locator"]).first
+                el.scroll_into_view_if_needed()
+                box = el.bounding_box()
+                if box:                                          # glide the cursor, then emphasise
+                    page.evaluate("(b) => window.__tg && window.__tg.cursorTo(b)", box)
+                    page.wait_for_timeout(int(cfg.cursor_travel_s * 1000))
+                    emphasis = step.get("emphasis", "none")
+                    if emphasis == "highlight":
+                        page.evaluate("(b) => window.__tg && window.__tg.highlight(b)", box)
+                    elif emphasis == "zoom":
+                        page.evaluate("(b) => window.__tg && window.__tg.zoom(b, 1.4)", box)
+                do_action(page, el, step)
 
             plan = plan_by_id[step["id"]]
             elapsed = (time.monotonic() - t0) - start

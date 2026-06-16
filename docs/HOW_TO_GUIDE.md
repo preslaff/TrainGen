@@ -124,7 +124,7 @@ scenarios:
       - id: open-new-form
         intent: "Open the new-partner form from the list"
         locator: { testid: "partners-add-btn" }   # testid > label > role+name
-        action: click                              # click|fill|select|hover|wait|navigate
+        action: click                              # click|fill|select|hover|press|wait|settle|navigate
         emphasis: highlight                         # highlight|zoom|none (overlays: v0.2)
         settle_ms: 800
 ```

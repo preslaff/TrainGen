@@ -65,20 +65,33 @@ def settle(page, quiet_ms: int = 1000, timeout_ms: int = 15000) -> None:
 
 
 def resolve_locator(page, loc: dict):
-    """Semantic locators only — never raw CSS (BLUEPRINT §3)."""
+    """Locator priority: testid > placeholder > label > role+name (BLUEPRINT §3).
+
+    `css` is a FLAGGED escape hatch for genuinely non-semantic UIs — e.g. Mapbox pins
+    that are real DOM nodes but carry only a class, no testid/accessible name
+    (MULTIMODAL.md §1/§8). Prefer filing a test-id gap over leaving a css locator.
+    """
     if "testid" in loc:
         return page.get_by_test_id(loc["testid"])
     if "placeholder" in loc:
         return page.get_by_placeholder(loc["placeholder"])
     if "label" in loc:
         return page.get_by_label(loc["label"])
-    return page.get_by_role(loc["role"], name=loc["name"])
+    if "role" in loc:
+        return page.get_by_role(loc["role"], name=loc.get("name"))
+    if "css" in loc:
+        return page.locator(loc["css"])     # escape hatch — fragility-tagged
+    raise ValueError(f"unresolvable locator: {loc}")
 
 
 def do_action(page, el, step: dict, cfg=None) -> None:
     action = step["action"]
     if action == "click":
-        el.click()
+        n = max(1, int(step.get("repeat", 1)))     # e.g. zoom-in N times on a map control
+        for i in range(n):
+            el.click()
+            if i < n - 1:
+                page.wait_for_timeout(int(step.get("repeat_delay_ms", 400)))
     elif action == "fill":
         value = step.get("value", "")
         delay = getattr(cfg, "type_delay_ms", 0) or 0

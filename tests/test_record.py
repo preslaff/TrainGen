@@ -125,12 +125,49 @@ def test_dismiss_overlays(monkeypatch=None):
     print("OK  dismiss_overlays: waits for late overlays, clicks them, skips/ swallows the rest")
 
 
+class _RoutePage:
+    """Records which Playwright getter resolve_locator routes to."""
+    def get_by_test_id(self, v): return ("testid", v)
+    def get_by_placeholder(self, v): return ("placeholder", v)
+    def get_by_label(self, v): return ("label", v)
+    def get_by_role(self, role, name=None): return ("role", role, name)
+    def locator(self, css): return ("css", css)
+
+
+def test_resolve_locator_routing():
+    p = _RoutePage()
+    assert record.resolve_locator(p, {"testid": "x"}) == ("testid", "x")
+    assert record.resolve_locator(p, {"placeholder": "Search"}) == ("placeholder", "Search")
+    assert record.resolve_locator(p, {"label": "Region"}) == ("label", "Region")
+    assert record.resolve_locator(p, {"role": "button", "name": "Zoom in"}) == ("role", "button", "Zoom in")
+    # css is the flagged escape hatch for non-semantic controls (map pins)
+    assert record.resolve_locator(p, {"css": ".marker-member"}) == ("css", ".marker-member")
+    try:
+        record.resolve_locator(p, {})
+        assert False, "empty locator must raise"
+    except ValueError:
+        pass
+    print("OK  resolve_locator: testid/placeholder/label/role routed; css escape hatch; empty raises")
+
+
+def test_click_repeat():
+    el = FakeEl()
+    record.do_action(FakePage([0]), el, {"action": "click", "repeat": 5, "repeat_delay_ms": 1})
+    assert el.calls.count(("click",)) == 5, "repeat:5 clicks five times (e.g. zoom-in)"
+    el2 = FakeEl()
+    record.do_action(FakePage([0]), el2, {"action": "click"})
+    assert el2.calls.count(("click",)) == 1, "no repeat -> single click"
+    print("OK  do_action: click honours repeat (map zoom), defaults to one")
+
+
 def main() -> int:
     test_settle_returns_when_text_stabilizes()
     test_settle_times_out_when_text_keeps_growing()
     test_do_action_dispatch()
     test_fill_types_visibly_with_delay()
     test_dismiss_overlays()
+    test_resolve_locator_routing()
+    test_click_repeat()
     print("\nall record tests passed")
     return 0
 

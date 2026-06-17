@@ -126,6 +126,17 @@ multi-screen apply form and admin CRUD wait for sub-step insertion + seeded data
 - **Member dashboard:** deferred until you develop a non-OTP (or API-token) login; then the
   same pipeline extends to member/admin flows.
 
+**Second public flow shipped — `explore-map` (interactive Mapbox map).** A real synced BG +
+EN captioned video of the `/explore` map: zoom into a town to uncluster pins → click a place
+→ read its detail card. Validated live under headless + `--disable-gpu` (SwiftShader WebGL
+paints; the "Zoom in" control unclusters canvas symbols into DOM pins). This was the chosen
+**locator-fragility stress test**: every control binds semantically (role+name / aria-label)
+**except the map pin** — a real `<button>` with only a CSS class, no testid/accessible name.
+It uses the new **flagged `css` escape hatch** in `resolve_locator` (§1/§8), and `record.py`
+gained a `repeat` field for repeated control clicks (the zoom).
+**PLATFORM TEST-ID GAP:** add `data-testid` (e.g. `map-marker`) to `PinMarker` so the pin
+binds durably instead of via the css escape hatch.
+
 ---
 
 ## 7. Sequenced roadmap

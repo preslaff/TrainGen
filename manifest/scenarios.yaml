@@ -78,6 +78,55 @@ scenarios:
         emphasis: none
         settle_ms: 1500
 
+  # Phase 0 dogfood #2 — public interactive map (/explore). Mapbox GL via react-map-gl.
+  # Validated live (headless + --disable-gpu, SwiftShader WebGL): the basemap paints, the
+  # "Zoom in" control unclusters points into DOM pins, and clicking a pin opens the detail
+  # card. The map pin is the ONE non-semantic control — it is a real <button> but carries
+  # only a CSS class (marker-member), no testid/accessible name, so it uses a FLAGGED css
+  # escape hatch (MULTIMODAL §1/§8). PLATFORM TEST-ID GAP: add data-testid to PinMarker.
+  - scenario_id: explore-map
+    title:
+      bg: "Разглеждане на картата с партньори"
+      en: "Exploring the partner map"
+    role: public
+    goal: >
+      Show a visitor how to explore tourism partners on the interactive map: zoom into
+      a town to reveal individual places, then open one to see its details.
+    entry_route: "/en/explore"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: browse-map
+        intent: "Take in the interactive map of tourism partners across Bulgaria"
+        action: settle          # let the basemap + place data finish loading
+        emphasis: none
+        settle_ms: 1500
+      - id: close-filters
+        intent: "Close the filter panel for a full view of the map"
+        locator: { role: button, name: "Close filters" }   # sidebar is open by default + occludes the map controls
+        action: click
+        emphasis: highlight
+        settle_ms: 600
+      - id: zoom-in
+        intent: "Zoom into a town to reveal individual places instead of clusters"
+        locator: { role: button, name: "Zoom in" }
+        action: click
+        repeat: 5               # each click zooms one level; ~5 unclusters the pins
+        repeat_delay_ms: 500
+        emphasis: highlight
+        settle_ms: 1200
+      - id: open-place
+        intent: "Open a place on the map to see who the partner is"
+        locator: { css: ".marker-member" }   # escape hatch: pin has no testid/name (gap filed)
+        action: click
+        emphasis: zoom
+        settle_ms: 1200
+      - id: read-place
+        intent: "Read the partner's details in the card that opens"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+
   - scenario_id: add-partner-profile
     title:
       bg: "Добавяне на партньорски профил"

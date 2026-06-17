@@ -6,14 +6,16 @@ changes, what it **proves**, and what it **depends on**.
 
 ## Current state
 
-**v0.1 is built and offline-proven.** The production chain
-`script → narrate → choreograph → record → compose` runs end to end; `cache.py` provides
-digest/stamp idempotency (script + narrate stages); TTS has an offline (espeak-ng /
-silent fallback) and an OmniVoice backend. `tests/test_timing.py` proves the
-measured-offset timing model with a synthetic video — **but nothing has yet been recorded
-against the real platform.** Not built: overlays, EN path exercised end to end,
-`subtitle.py`, intro/outro, the discovery layers, and cache coverage on
-choreograph/record/compose.
+**v0.1–v0.3 are built; v0.1-live is achieved.** The production chain
+`script → narrate → choreograph → record → subtitle → compose` runs end to end and has now
+produced a **real, synced, dual-language captioned MP4 against the live platform** — the
+public `concierge-chatbot` flow (BG + EN, ~43s, OmniVoice voice via the LAN
+`omnivoice_remote` backend, per-step VTT). The measured-offset timing model held on real
+capture, not just the synthetic `tests/test_timing.py`. `cache.py` provides digest/stamp
+idempotency on the script + narrate stages; TTS has offline (espeak-ng / silent fallback),
+in-process OmniVoice, and remote-OmniVoice backends. Overlays, the EN path, `subtitle.py`,
+and intro/outro compose are all built. Not built: cache coverage on
+choreograph/record/compose, the v0.5 CI loop, and runtime sub-step insertion in discovery.
 
 ## Sequencing decision
 
@@ -37,12 +39,16 @@ v0.1 (done) ─▶ v0.1-live ─▶ v0.2 ─▶ v0.3 ─▶ v0.4 ─▶ v0.5
 > real video doesn't wait on auth. Multimodal understanding (vision) is planned as the
 > binding + framework-agnostic-discovery layer and the path to productizing TrainGen.
 
-## v0.1-live — validate against the real platform
+## v0.1-live — validate against the real platform — DONE (public flow)
 
 **Deliverable:** a real synced `final.mp4` for a **public** flow (no auth); the
 `add-partner-profile`/member flows follow once a non-OTP login exists.
 
-**Work:**
+**Done:** `concierge-chatbot` recorded live in BG + EN — synced, captioned, OmniVoice voice;
+the timing model survived real capture. Achieved via MULTIMODAL.md M2 (Phase 0 dogfood).
+The `add-partner-profile`/member flows still wait on a non-OTP login + seeded tenant.
+
+**Work (original, for the authenticated flows):**
 - Set `TRAINGEN_BASE_URL` to staging; add the `login:` block to `manifest/scenarios.yaml`
   `defaults:` and confirm `record.login()` authenticates as `admin`.
 - Confirm every locator/test-id in the scenario resolves against the live UI; file any

@@ -133,14 +133,14 @@ multi-screen apply form and admin CRUD wait for sub-step insertion + seeded data
 | Milestone | Deliverable | Proves | Offline-testable |
 |---|---|---|---|
 | **M1 — VisionMatcher (C1)** — DONE & VALIDATED | `llm.complete_vision` + `VisionMatcher` (picks among DOM candidates by screenshot, binds the durable semantic locator, `crawl-only` provenance, heuristic fallback) wired into L3 as `verify_matcher=vision`; `PlaywrightDriver.screenshot()` + per-control bounding boxes; `tests/test_vision.py`. **Live result on /partner/apply: 2/7 → 4/7 bound** — vision bound the placeholder-named fields heuristics couldn't (business name "e.g. Hotel Residence Plovdiv", phone "+359…"). Remaining gaps are NOT vision: wizard sub-steps (screen 3 not rendered) and seeded data (empty admin list). | ✅ vision lifts binding on the exact bad-name failures | stub offline ✓; real bbox+screenshot in Chromium ✓; live ✓ |
-| **M2 — Phase 0 dogfood: concierge chatbot** | the **chatbot concierge** flow (single-screen, public, no login/wizard/seed) → captioned BG/EN MP4 (OmniVoice) | end-to-end product works on a real flow | n/a (live, public — no secrets) |
+| **M2 — Phase 0 dogfood: concierge chatbot — DONE** | the **chatbot concierge** flow (single-screen, public, no login/wizard/seed) recorded live → **real synced captioned BG + EN MP4** (~43s each, OmniVoice voice via the LAN `omnivoice_remote` backend, 3 VTT cues each). The dynamic-content settle (`read-answer` waits for the streamed reply) and the measured-offset timing both held. | ✅ end-to-end product works on a real flow | n/a (live, public — no secrets) |
 | **M3 — Visual discovery enrichment (C2)** | screenshot crawl → richer inventory; framework-agnostic | discovery works beyond Next.js | enrichment logic offline; live crawl for real data |
 | **M4 — Visual QA (C3)** | frame-checks feeding the human gate | catches wrong-element/desync | verdict logic offline |
 | **M5 — Curation UI / control plane** | review surface (screenshots + provenance + ship-list) | humans steer, not edit YAML | — |
 | **M6 — Native seams (Driver/Recorder/Overlay)** | Appium + computer-use drivers | other platforms | — |
 
-M1 → M2 is the critical path to a shipped video. M3 is the productization bet. M5–M6 are
-product build-out, after value is proven.
+M1 → M2 is the critical path to a shipped video — **now complete: a real BG/EN video is
+shipped.** M3 is the productization bet. M5–M6 are product build-out, after value is proven.
 
 ---
 

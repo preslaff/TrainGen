@@ -60,6 +60,14 @@ The `add-partner-profile`/member flows still wait on a non-OTP login + seeded te
 **Proves:** the model survives contact with reality — the prerequisite for everything else.
 **Depends on:** staging demo tenant + seeded credentials.
 
+> **Deferred — non-OTP login (introduced later).** Authenticated flows
+> (`add-partner-profile`, member/admin dashboards) are gated on an automatable login: the
+> live app uses OTP, which a headless recorder can't satisfy. A **non-OTP path** —
+> an API-token session or a staging-only password login seeded per role — will be
+> introduced later, on the platform side, then wired into `record.login()` via
+> `TRAINGEN_<ROLE>_PASSWORD`. Until then TrainGen ships **public flows only**; this is a
+> known, accepted gap, not a blocker for the current breadth work.
+
 ---
 
 ## Extract spike (parallel) — Layer 1 only — IN PROGRESS

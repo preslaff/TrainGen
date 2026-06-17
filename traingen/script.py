@@ -46,7 +46,8 @@ class AnthropicNarrator:
             f"You write narration for a software training video, in {ln}. Tone: calm, "
             "instructional, second person. For EACH step write ONE natural spoken sentence "
             f"in {ln} that teaches what the user is doing and why — not a UI label, not a "
-            "translation of the step id. Return JSON {steps:[{id, narration}]} covering "
+            "translation of the step id. Keep each sentence short enough to speak in a few "
+            "seconds (roughly 8-18 words). Return JSON {steps:[{id, narration}]} covering "
             "every step, in order.")
         user = (f"Learning goal: {goal}\nSteps (id: what it teaches):\n"
                 + "\n".join(f"- {s['id']}: {s['intent']}" for s in steps))

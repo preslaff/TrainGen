@@ -46,6 +46,7 @@ test:      ## run all offline tests
 	python -m tests.test_vision
 	python -m tests.test_record
 	python -m tests.test_choreograph
+	python -m tests.test_tts
 
 clean:
 	rm -rf out/*

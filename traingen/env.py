@@ -14,6 +14,24 @@ from pathlib import Path
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 
+def _clean_value(val: str) -> str:
+    """Unwrap a quoted value, or strip a trailing inline comment from a bare one.
+
+    Quoted values keep everything inside the quotes verbatim (so a `#` in a secret
+    survives). Bare values drop an inline comment introduced by whitespace + `#`
+    (the dotenv convention) — this is what `.env.example`'s annotated lines need.
+    """
+    if val[:1] in ("'", '"'):
+        quote = val[0]
+        end = val.find(quote, 1)
+        return val[1:end] if end != -1 else val[1:]
+    for sep in (" #", "\t#"):
+        idx = val.find(sep)
+        if idx != -1:
+            val = val[:idx]
+    return val.strip()
+
+
 def load_dotenv(path=ENV_PATH) -> None:
     path = Path(path)
     if not path.exists():
@@ -24,7 +42,7 @@ def load_dotenv(path=ENV_PATH) -> None:
             continue
         key, val = line.split("=", 1)
         key = key.strip()
-        val = val.strip().strip('"').strip("'")
+        val = _clean_value(val.strip())
         if key:
             os.environ.setdefault(key, val)   # real env wins over the file
 

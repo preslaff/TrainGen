@@ -13,11 +13,29 @@ import os
 import shutil
 import subprocess
 import wave
+from pathlib import Path
+
+# Per-voice reference clips for deterministic voice cloning (consistent speaker +
+# accent across every clip). Drop "<voice>.wav" plus "<voice>.txt" (the EXACT
+# transcript of that clip) into TRAINGEN_VOICE_DIR. If a voice has no reference
+# files, the remote backend falls back to `instruct` voice design.
+_VOICE_DIR = Path(
+    os.environ.get(
+        "TRAINGEN_VOICE_DIR",
+        str(Path(__file__).resolve().parent.parent / "assets" / "voices"),
+    )
+)
 
 # Map our manifest voice names -> OmniVoice voice-design attributes.
+# OmniVoice's `instruct` is a FIXED vocabulary — the server rejects anything else with
+# HTTP 500. Valid English items: female/male; child/teenager/young adult/middle-aged/
+# elderly; very low/low/moderate/high/very high pitch; whisper; and accents (british,
+# american, indian, ...). Free-form words like "calm", "instructional", "neutral" are NOT
+# valid. A calm instructional narrator maps to: female + young adult + moderate pitch.
+# Use only English (comma + space) OR only Chinese (full-width comma) items, not a mix.
 INSTRUCT = {
-    "voice_bg_calm": "calm, instructional, neutral, female",
-    "voice_en_calm": "calm, instructional, neutral, female",
+    "voice_bg_calm": "female, young adult, moderate pitch",
+    "voice_en_calm": "female, young adult, moderate pitch",
 }
 
 
@@ -76,5 +94,76 @@ class OmniVoiceBackend:
         sf.write(str(out_path), audio[0], 24000)
 
 
+class RemoteOmniVoiceBackend:
+    """OmniVoice running on another LAN machine (no local GPU needed).
+
+    Talks to `omnivoice/cli/serve.py` over HTTP and writes the returned 24 kHz
+    WAV to `out_path`. Voice selection stays here, per `voice`:
+
+    - if a "<voice>.wav" + "<voice>.txt" pair exists in TRAINGEN_VOICE_DIR, the
+      reference is sent for deterministic voice cloning (same speaker + accent
+      every time — the server caches the encoded prompt and decodes greedily);
+    - otherwise it falls back to the `voice -> instruct` design mapping.
+
+    Configure the server URL via TRAINGEN_OMNIVOICE_URL, e.g.
+        TRAINGEN_OMNIVOICE_URL=http://192.168.78.101:8002
+    """
+
+    def __init__(self, url: str | None = None, voice_dir=None):
+        base = url or os.environ.get("TRAINGEN_OMNIVOICE_URL", "http://localhost:8002")
+        self.url = base.rstrip("/")
+        self.voice_dir = Path(voice_dir) if voice_dir else _VOICE_DIR
+        self._ref_cache: dict[str, tuple[str, str] | None] = {}
+
+    def _reference(self, voice: str):
+        """Return (base64_wav, transcript) for a voice, or None if unconfigured."""
+        if voice not in self._ref_cache:
+            import base64
+
+            wav = self.voice_dir / f"{voice}.wav"
+            txt = self.voice_dir / f"{voice}.txt"
+            if wav.is_file() and txt.is_file():
+                self._ref_cache[voice] = (
+                    base64.b64encode(wav.read_bytes()).decode("ascii"),
+                    txt.read_text(encoding="utf-8").strip(),
+                )
+            else:
+                self._ref_cache[voice] = None
+        return self._ref_cache[voice]
+
+    def synth(self, text: str, lang: str, voice: str, out_path) -> None:
+        import json
+        import urllib.error
+        import urllib.request
+
+        payload = {"text": text}
+        ref = self._reference(voice)
+        if ref is not None:
+            payload["ref_audio_b64"], payload["ref_text"] = ref
+        else:
+            payload["instruct"] = INSTRUCT.get(voice, "female, young adult, moderate pitch")
+
+        req = urllib.request.Request(
+            f"{self.url}/synth",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        # Generation is serialized server-side and can take a while for long text.
+        try:
+            with urllib.request.urlopen(req, timeout=600) as resp:
+                data = resp.read()
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "replace")
+            raise RuntimeError(
+                f"OmniVoice server {self.url}/synth returned HTTP {e.code}: {body}") from None
+        with open(str(out_path), "wb") as f:
+            f.write(data)
+
+
 def get_backend(name: str):
-    return OmniVoiceBackend() if name == "omnivoice" else OfflineBackend()
+    if name == "omnivoice":
+        return OmniVoiceBackend()
+    if name in ("omnivoice_remote", "omnivoice-remote"):
+        return RemoteOmniVoiceBackend()
+    return OfflineBackend()

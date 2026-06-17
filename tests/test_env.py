@@ -26,6 +26,7 @@ def test_loads_and_respects_existing_env():
 
     os.environ.pop("TRAINGEN_BASE_URL", None)
     os.environ.pop("TRAINGEN_FPS", None)
+    os.environ.pop("ANTHROPIC_API_KEY", None)   # the real .env may have claimed it on import
     os.environ["TRAINGEN_ALREADY_SET"] = "from_shell"   # real env must win
 
     env.load_dotenv(d / ".env")
@@ -35,6 +36,29 @@ def test_loads_and_respects_existing_env():
     assert os.environ["ANTHROPIC_API_KEY"] == "sk-quoted"
     assert os.environ["TRAINGEN_ALREADY_SET"] == "from_shell", "shell env not overridden by .env"
     print("OK  env: parses KEY=VALUE (comments/blanks/quotes), real env wins over the file")
+
+
+def test_strips_inline_comments():
+    """`.env.example`'s annotated lines (VALUE   # note) must parse to the bare value —
+    a `#` inside a quoted secret must survive."""
+    d = Path(tempfile.mkdtemp())
+    (d / ".env").write_text(
+        "TRAINGEN_CURSOR_TRAVEL_S=0.8       # how long the cursor glides to each target\n"
+        "TRAINGEN_PACE=1.0\t# tab-introduced comment\n"
+        'TRAINGEN_SECRET="ab#cd"            # hash inside quotes is kept\n',
+        encoding="utf-8")
+    for k in ("TRAINGEN_CURSOR_TRAVEL_S", "TRAINGEN_PACE", "TRAINGEN_SECRET"):
+        os.environ.pop(k, None)
+
+    env.load_dotenv(d / ".env")
+
+    assert os.environ["TRAINGEN_CURSOR_TRAVEL_S"] == "0.8", "inline comment stripped"
+    assert float(os.environ["TRAINGEN_CURSOR_TRAVEL_S"]) == 0.8
+    assert os.environ["TRAINGEN_PACE"] == "1.0", "tab comment stripped"
+    assert os.environ["TRAINGEN_SECRET"] == "ab#cd", "hash inside quotes kept"
+    for k in ("TRAINGEN_CURSOR_TRAVEL_S", "TRAINGEN_PACE", "TRAINGEN_SECRET"):
+        os.environ.pop(k, None)
+    print("OK  env: strips inline comments on bare values, keeps # inside quotes")
 
 
 def test_missing_file_is_noop():
@@ -60,6 +84,7 @@ def test_config_reads_env(monkeypatch=None):
 
 def main() -> int:
     test_loads_and_respects_existing_env()
+    test_strips_inline_comments()
     test_missing_file_is_noop()
     test_config_reads_env()
     print("\nall env tests passed")

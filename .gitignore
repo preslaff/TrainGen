@@ -4,3 +4,11 @@ __pycache__/
 .venv/
 venv/
 .env
+
+# Voice reference clips are drop-in local files (see assets/voices/README.md);
+# keep binaries/transcripts out of git, track only the README.
+assets/voices/*.wav
+assets/voices/*.txt
+
+# stray scratch audio at repo root
+/test.wav

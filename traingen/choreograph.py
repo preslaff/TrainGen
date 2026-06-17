@@ -25,7 +25,9 @@ def run(scenario: dict, narrate_doc: dict, cfg: config.Config) -> dict:
         audio = audio_by_id[step["id"]]
         settle = step.get("settle_ms", 0) / 1000.0
         floor = cfg.cursor_travel_s + ACTION_EXEC_ESTIMATE_S + settle
-        step_duration = max(audio, floor) + cfg.tail_pad_s
+        # `pace` (>=1) stretches the dwell for viewer comprehension; audio is still pinned at
+        # its measured_start in compose, so a slower pace just adds a pause after each line.
+        step_duration = (max(audio, floor) + cfg.tail_pad_s) * getattr(cfg, "pace", 1.0)
         steps.append({
             "id": step["id"],
             "audio_duration": round(audio, 3),

@@ -25,6 +25,8 @@ class Config:
     langs: list
     voices: dict
     rec_start_pad_s: float = 0.5
+    pace: float = 1.0              # global dwell multiplier (1.5 = 50% slower, for perception)
+    type_delay_ms: int = 60        # per-character typing delay so typing is visible (0 = instant)
     headless: bool = False
     browser_args: list = field(default_factory=list)   # Chromium launch flags (e.g. --disable-gpu)
     tts_backend: str = "offline"   # "offline" (espeak-ng) | "omnivoice"
@@ -76,6 +78,8 @@ def load_config(path=MANIFEST) -> Config:
         langs=langs,
         voices=d.get("voices", {}),
         rec_start_pad_s=float(_env_or(d, "rec_start_pad_s", "TRAINGEN_REC_START_PAD_S", 0.5)),
+        pace=float(_env_or(d, "pace", "TRAINGEN_PACE", 1.0)),
+        type_delay_ms=int(_env_or(d, "type_delay_ms", "TRAINGEN_TYPE_DELAY_MS", 60)),
         headless=str(_env_or(d, "headless", "TRAINGEN_HEADLESS", "0")).lower() in ("1", "true", "yes"),
         browser_args=_browser_args(d),
         tts_backend=_env_or(d, "tts_backend", "TRAINGEN_TTS", "offline"),

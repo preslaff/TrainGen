@@ -39,6 +39,7 @@ class FakeEl:
 
     def click(self): self.calls.append(("click",))
     def fill(self, v): self.calls.append(("fill", v))
+    def press_sequentially(self, v, delay=None): self.calls.append(("type", v, delay))
     def press(self, k): self.calls.append(("press", k))
     def select_option(self, label=None): self.calls.append(("select", label))
     def hover(self): self.calls.append(("hover",))
@@ -74,6 +75,21 @@ def test_do_action_dispatch():
 
     record.do_action(FakePage([7, 7, 7, 7]), None, {"action": "settle"})  # routes to settle, no el
     print("OK  do_action: press/fill/click on element; navigate+settle are element-less")
+
+
+class _Cfg:
+    type_delay_ms = 50
+
+
+def test_fill_types_visibly_with_delay():
+    el = FakeEl()
+    record.do_action(FakePage([0]), el, {"action": "fill", "value": "hi there"}, _Cfg())
+    assert ("type", "hi there", 50) in el.calls, "with a type delay, fill types char-by-char"
+
+    el2 = FakeEl()                                   # no cfg -> instant fill (e.g. tests/back-compat)
+    record.do_action(FakePage([0]), el2, {"action": "fill", "value": "x"})
+    assert ("fill", "x") in el2.calls
+    print("OK  do_action: visible typing when type_delay_ms set; instant fill otherwise")
 
 
 class FakeLoc:
@@ -113,6 +129,7 @@ def main() -> int:
     test_settle_returns_when_text_stabilizes()
     test_settle_times_out_when_text_keeps_growing()
     test_do_action_dispatch()
+    test_fill_types_visibly_with_delay()
     test_dismiss_overlays()
     print("\nall record tests passed")
     return 0

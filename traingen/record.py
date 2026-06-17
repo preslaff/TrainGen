@@ -75,12 +75,20 @@ def resolve_locator(page, loc: dict):
     return page.get_by_role(loc["role"], name=loc["name"])
 
 
-def do_action(page, el, step: dict) -> None:
+def do_action(page, el, step: dict, cfg=None) -> None:
     action = step["action"]
     if action == "click":
         el.click()
     elif action == "fill":
-        el.fill(step.get("value", ""))
+        value = step.get("value", "")
+        delay = getattr(cfg, "type_delay_ms", 0) or 0
+        if value and delay:                       # visible, human-paced typing
+            try:
+                el.press_sequentially(value, delay=delay)
+            except AttributeError:
+                el.type(value, delay=delay)       # older Playwright
+        else:
+            el.fill(value)
     elif action == "select":
         el.select_option(label=step.get("value"))
     elif action == "hover":
@@ -169,7 +177,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
             elementless = step.get("action") in _ELEMENTLESS or not step.get("locator")
 
             if elementless:
-                do_action(page, None, step)                      # wait / settle / navigate
+                do_action(page, None, step, cfg)                 # wait / settle / navigate
             else:
                 el = resolve_locator(page, step["locator"]).first
                 el.scroll_into_view_if_needed()
@@ -182,7 +190,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
                         page.evaluate("(b) => window.__tg && window.__tg.highlight(b)", box)
                     elif emphasis == "zoom":
                         page.evaluate("(b) => window.__tg && window.__tg.zoom(b, 1.4)", box)
-                do_action(page, el, step)
+                do_action(page, el, step, cfg)
 
             plan = plan_by_id[step["id"]]
             elapsed = (time.monotonic() - t0) - start

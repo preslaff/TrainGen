@@ -126,6 +126,26 @@ scenarios:
         action: settle
         emphasis: none
         settle_ms: 2000
+      # Guided tour of the card's actions — `point` highlights each control and dwells while
+      # the narration explains it, WITHOUT clicking (explain-only beat, no state change).
+      - id: explain-view-profile
+        intent: "Explain that View profile opens the partner's full page with more detail"
+        locator: { role: link, name: "View profile" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+      - id: explain-add-itinerary
+        intent: "Explain that Add to Itinerary saves this place to your trip plan"
+        locator: { role: button, name: "Add to Itinerary" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+      - id: explain-book-direct
+        intent: "Explain that Book Direct lets you reserve with the partner directly"
+        locator: { role: button, name: "Book Direct" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
 
   - scenario_id: add-partner-profile
     title:

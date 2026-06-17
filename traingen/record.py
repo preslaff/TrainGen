@@ -106,6 +106,9 @@ def do_action(page, el, step: dict, cfg=None) -> None:
         el.select_option(label=step.get("value"))
     elif action == "hover":
         el.hover()
+    elif action == "point":
+        pass            # explain-only beat: the run loop already glided the cursor + drew the
+                        # emphasis; we dwell while narration explains, without interacting
     elif action == "press":
         el.press(step.get("value", "Enter"))
     elif action == "wait":

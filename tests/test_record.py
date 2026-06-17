@@ -77,6 +77,13 @@ def test_do_action_dispatch():
     print("OK  do_action: press/fill/click on element; navigate+settle are element-less")
 
 
+def test_point_is_noop():
+    el = FakeEl()
+    record.do_action(FakePage([0]), el, {"action": "point"})   # explain-only beat
+    assert el.calls == [], "point must not interact (cursor glide + emphasis happen in the run loop)"
+    print("OK  do_action: point is a no-op (explains a control without clicking it)")
+
+
 class _Cfg:
     type_delay_ms = 50
 
@@ -164,6 +171,7 @@ def main() -> int:
     test_settle_returns_when_text_stabilizes()
     test_settle_times_out_when_text_keeps_growing()
     test_do_action_dispatch()
+    test_point_is_noop()
     test_fill_types_visibly_with_delay()
     test_dismiss_overlays()
     test_resolve_locator_routing()

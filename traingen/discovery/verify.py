@@ -366,9 +366,14 @@ class PlaywrightDriver:
 
     def advance(self, step: dict):
         try:
+            if step.get("action") == "navigate":
+                # route through the locale-aware goto — a raw page.goto(value) would hit the
+                # locale-stripped URL (e.g. /admin/dashboard/communications) and 404.
+                self.goto(step.get("value", "/"))
+                return
             el = self._rec.resolve_locator(self.page, step["locator"]).first
             self._rec.do_action(self.page, el, step)
-            self.page.wait_for_load_state("networkidle")
+            self._rec.ready(self.page)            # domcontentloaded — networkidle hangs the streaming app
         except Exception:
             pass  # read-mostly best effort; resolution already recorded
 

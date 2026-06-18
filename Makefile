@@ -25,6 +25,9 @@ synthesize: ## Layer 2 — drafts.yaml from the inventory (needs anthropic + ANT
 verify:    ## Layer 3 — verify drafts against the running app (needs Playwright + demo tenant)
 	python -m traingen.discovery.verify_cli
 
+enrich:    ## M3 — visual enrichment crawl (screenshots -> Claude vision; needs app + ANTHROPIC_API_KEY)
+	python -m traingen.discovery.enrich_cli
+
 discover:  ## run discovery end to end: extract → synthesize → verify
 	python run.py --discover
 
@@ -47,6 +50,7 @@ test:      ## run all offline tests
 	python -m tests.test_record
 	python -m tests.test_choreograph
 	python -m tests.test_tts
+	python -m tests.test_enrich
 
 clean:
 	rm -rf out/*

@@ -311,11 +311,18 @@ class PlaywrightDriver:
                                                  args=getattr(prod_cfg, "browser_args", []) or [])
         self._ctx = self._browser.new_context(base_url=prod_cfg.base_url, viewport=prod_cfg.viewport)
         self.page = self._ctx.new_page()
+        self._dismissed = False
         rec.login(self.page, role, prod_cfg)
 
-    def goto(self, route: str):
+    def goto(self, route: str, settle_ms: int = 0):
         self.page.goto(live_route(route, self._locale, self._scopes))
-        self.page.wait_for_load_state("networkidle")
+        self._rec.ready(self.page)            # domcontentloaded — networkidle hangs the streaming app
+        if not self._dismissed:               # clear the cookie banner once; the accept cookie persists
+            self._rec.dismiss_overlays(self.page, getattr(self._cfg, "dismiss", None) or [],
+                                       timeout_ms=3000)
+            self._dismissed = True
+        if settle_ms:
+            self.page.wait_for_timeout(settle_ms)   # let WebGL/late content paint before a screenshot
 
     def resolve(self, locator: dict):
         if not locator or not any(k in locator for k in ("testid", "placeholder", "label", "role")):

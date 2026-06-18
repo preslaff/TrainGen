@@ -167,6 +167,67 @@ def test_click_repeat():
     print("OK  do_action: click honours repeat (map zoom), defaults to one")
 
 
+class _Resp:
+    def __init__(self, ok=True, status=200, payload=None):
+        self.ok, self.status, self._payload = ok, status, payload or {}
+    def json(self): return self._payload
+
+
+class _ReqPage:
+    """Captures request.post calls and records goto navigations (for visit_field)."""
+    def __init__(self, resp):
+        self._resp, self.posts, self.gotos = resp, [], []
+        self.request = self
+    def post(self, url, data=None, headers=None):
+        self.posts.append((url, data, headers)); return self._resp
+    def goto(self, url): self.gotos.append(url)
+    def wait_for_load_state(self, state=None): pass
+    def evaluate(self, expr): return 0
+    def wait_for_timeout(self, ms): pass
+
+
+class _LoginCfg:
+    def __init__(self, login): self.login = login
+
+
+def test_login_api_modes():
+    import os
+    os.environ["TRAINGEN_ADMIN_PASSWORD"] = "secret-key"
+    # admin: POST resolves {from_env} and sends it; no visit_field -> cookie-only
+    p = _ReqPage(_Resp(ok=True))
+    record.login(p, "admin", _LoginCfg({"admin": {
+        "api": {"route": "/api/admin/login", "json": {"key": {"from_env": "TRAINGEN_ADMIN_PASSWORD"}}}}}))
+    assert p.posts == [("/api/admin/login", {"key": "secret-key"}, None)], "POSTs the env-resolved key"
+    assert p.gotos == [], "no visit_field -> cookie-only, no navigation"
+
+    # member-style: POST returns verify_url -> login visits it
+    os.environ["TRAINGEN_MEMBER_TEST_SECRET"] = "staging-secret"
+    p2 = _ReqPage(_Resp(ok=True, payload={"verify_url": "/member/login/verify?token=abc"}))
+    record.login(p2, "member", _LoginCfg({"member": {"api": {
+        "route": "/api/v1/member/test-session",
+        "headers": {"X-Test-Session-Secret": {"from_env": "TRAINGEN_MEMBER_TEST_SECRET"}},
+        "json": {"slug": "demo-hotel"}, "visit_field": "verify_url"}}}))
+    assert p2.posts[0][2] == {"X-Test-Session-Secret": "staging-secret"}, "header secret resolved"
+    assert p2.gotos == ["/member/login/verify?token=abc"], "visits the returned verify_url"
+
+    # missing credential -> no POST at all (stay unauthenticated)
+    os.environ.pop("TRAINGEN_ADMIN_PASSWORD", None)
+    p3 = _ReqPage(_Resp(ok=True))
+    record.login(p3, "admin", _LoginCfg({"admin": {
+        "api": {"route": "/api/admin/login", "json": {"key": {"from_env": "TRAINGEN_ADMIN_PASSWORD"}}}}}))
+    assert p3.posts == [], "missing secret -> never POST a blank credential"
+
+    # auth rejected (401) -> no navigation, returns cleanly (no masquerading session)
+    os.environ["TRAINGEN_ADMIN_PASSWORD"] = "bad"
+    p4 = _ReqPage(_Resp(ok=False, status=401))
+    record.login(p4, "admin", _LoginCfg({"admin": {
+        "api": {"route": "/api/admin/login", "json": {"key": {"from_env": "TRAINGEN_ADMIN_PASSWORD"}}}}}))
+    assert len(p4.posts) == 1 and p4.gotos == [], "401 surfaced, no session, no further nav"
+    os.environ.pop("TRAINGEN_ADMIN_PASSWORD", None)
+    os.environ.pop("TRAINGEN_MEMBER_TEST_SECRET", None)
+    print("OK  login: api mode resolves env secrets, visits verify_url, bails on missing/invalid creds")
+
+
 def main() -> int:
     test_settle_returns_when_text_stabilizes()
     test_settle_times_out_when_text_keeps_growing()
@@ -176,6 +237,7 @@ def main() -> int:
     test_dismiss_overlays()
     test_resolve_locator_routing()
     test_click_repeat()
+    test_login_api_modes()
     print("\nall record tests passed")
     return 0
 

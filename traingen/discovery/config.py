@@ -50,6 +50,10 @@ class DiscoveryConfig:
     vision_model: str = "claude-opus-4-8"
     live_locale: str = "en"             # extract strips [locale]; verify re-inserts it for live URLs
     live_scopes: list = field(default_factory=lambda: ["admin", "member"])
+    # M3 visual enrichment (MULTIMODAL C2) — screenshot crawl, sidecar artifact, never L1 hash
+    enrich_roles: list = field(default_factory=lambda: ["public", "admin"])  # member: pending login seam
+    enrich_max_routes: int = 0          # 0 = no cap
+    enrich_render_ms: int = 2500        # wait after load before screenshot (WebGL/late paint)
 
 
 def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
@@ -78,4 +82,9 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
         vision_model=os.environ.get("TRAINGEN_VISION_MODEL", d.get("vision_model", "claude-opus-4-8")),
         live_locale=os.environ.get("TRAINGEN_LIVE_LOCALE", d.get("live_locale", "en")),
         live_scopes=d.get("live_scopes") or ["admin", "member"],
+        enrich_roles=(os.environ["TRAINGEN_ENRICH_ROLES"].split(",")
+                      if os.environ.get("TRAINGEN_ENRICH_ROLES")
+                      else d.get("enrich_roles") or ["public", "admin"]),
+        enrich_max_routes=int(os.environ.get("TRAINGEN_ENRICH_MAX_ROUTES", d.get("enrich_max_routes", 0))),
+        enrich_render_ms=int(os.environ.get("TRAINGEN_ENRICH_RENDER_MS", d.get("enrich_render_ms", 2500))),
     )

@@ -122,17 +122,38 @@ def do_action(page, el, step: dict, cfg=None) -> None:
         raise ValueError(f"unknown action: {action}")
 
 
+def _resolve_secrets(d: dict) -> dict:
+    """Map a {key: value | {from_env: VAR}} dict to concrete values (env-resolved)."""
+    import os
+    out = {}
+    for k, v in (d or {}).items():
+        out[k] = os.environ.get(v["from_env"]) if isinstance(v, dict) and v.get("from_env") else v
+    return out
+
+
 def login(page, role: str, cfg: config.Config) -> None:
-    """Authenticate as `role` against the seeded demo tenant (BLUEPRINT §11). Per-role
-    config lives in the manifest defaults `login:` block; secrets come from env vars and
-    are NEVER stored in the git-tracked manifest. Each field's locator is semantic
-    (testid/placeholder/label/role+name):
+    """Authenticate as `role` against the seeded demo tenant (BLUEPRINT §11). Per-role config
+    lives in the manifest defaults `login:` block; secrets come from env vars and are NEVER
+    stored in the git-tracked manifest.
+
+    Two modes. An `api:` block (preferred — a gated POST that yields a session; `page.request`
+    shares the context cookie jar) handles both the admin cookie-login and the staging member
+    test-session seam (POST returns a verify_url we then visit, exercising the real /verify
+    path; TrainGen never holds the signing secret). Or a `fields:`/`submit:` UI form with
+    semantic locators (testid/placeholder/label/role+name).
 
         login:
-          admin:
+          admin:                       # cookie set by the POST response
+            api: { route: "/api/admin/login", json: { key: { from_env: TRAINGEN_ADMIN_PASSWORD } } }
+          member:                      # POST -> read verify_url from JSON -> visit it to mint the session
+            api:
+              route: "/api/v1/member/test-session"
+              headers: { X-Test-Session-Secret: { from_env: TRAINGEN_MEMBER_TEST_SECRET } }
+              json:    { slug: "demo-hotel" }
+              visit_field: verify_url
+          admin_ui:                    # legacy UI form, still supported
             route: "/admin/en/login"
-            fields:
-              - { locator: { placeholder: "Enter admin key" }, from_env: TRAINGEN_ADMIN_PASSWORD }
+            fields: [ { locator: { placeholder: "Enter admin key" }, from_env: TRAINGEN_ADMIN_PASSWORD } ]
             submit: { role: button, name: "Sign In" }
 
     No config or missing secret for this role => no-op (starts unauthenticated). Never prod.
@@ -141,6 +162,32 @@ def login(page, role: str, cfg: config.Config) -> None:
     lc = (cfg.login or {}).get(role)
     if not lc:
         return
+
+    api = lc.get("api")
+    if api:
+        body = _resolve_secrets(api.get("json"))
+        headers = _resolve_secrets(api.get("headers"))
+        if any(v in (None, "") for v in list(body.values()) + list(headers.values())):
+            return  # missing credential — stay unauthenticated rather than POST a blank token
+        try:
+            resp = page.request.post(api["route"], data=body, headers=headers or None)
+            if not resp.ok:        # surface bad creds — never let a 401 masquerade as a real session
+                print(f"[login] {role}: auth POST {api['route']} -> HTTP {resp.status}; "
+                      "proceeding UNAUTHENTICATED (check the credential).")
+                return
+            field = api.get("visit_field")
+            if field:                                   # e.g. member: visit the returned verify_url
+                url = (resp.json() or {}).get(field)
+                if not url:
+                    print(f"[login] {role}: response had no '{field}'; proceeding unauthenticated.")
+                    return
+                page.goto(url)
+                ready(page)
+        except Exception as e:
+            print(f"[login] {role}: auth failed ({e}); proceeding unauthenticated.")
+            return
+        return
+
     page.goto(lc["route"])
     ready(page)
     for f in lc.get("fields", []):

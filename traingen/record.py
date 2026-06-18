@@ -145,12 +145,13 @@ def login(page, role: str, cfg: config.Config) -> None:
         login:
           admin:                       # cookie set by the POST response
             api: { route: "/api/admin/login", json: { key: { from_env: TRAINGEN_ADMIN_PASSWORD } } }
-          member:                      # POST -> read verify_url from JSON -> visit it to mint the session
+          member:                      # POST to the backend -> visit the verify URL (mints the session)
             api:
+              base_env: TRAINGEN_API_BASE_URL    # backend origin (the route lives there, not the frontend)
               route: "/api/v1/member/test-session"
               headers: { X-Test-Session-Secret: { from_env: TRAINGEN_MEMBER_TEST_SECRET } }
               json:    { slug: "demo-hotel" }
-              visit_field: verify_url
+              visit:   { path: "/member/login/verify?token={token}" }   # built on OUR frontend base_url
           admin_ui:                    # legacy UI form, still supported
             route: "/admin/en/login"
             fields: [ { locator: { placeholder: "Enter admin key" }, from_env: TRAINGEN_ADMIN_PASSWORD } ]
@@ -167,19 +168,27 @@ def login(page, role: str, cfg: config.Config) -> None:
     if api:
         body = _resolve_secrets(api.get("json"))
         headers = _resolve_secrets(api.get("headers"))
+        base = ""
+        if api.get("base_env"):                  # POST to another origin (e.g. the backend API)
+            base = os.environ.get(api["base_env"], "")
+            if not base:
+                print(f"[login] {role}: {api['base_env']} unset; proceeding unauthenticated.")
+                return
         if any(v in (None, "") for v in list(body.values()) + list(headers.values())):
             return  # missing credential — stay unauthenticated rather than POST a blank token
         try:
-            resp = page.request.post(api["route"], data=body, headers=headers or None)
+            resp = page.request.post(base + api["route"], data=body, headers=headers or None)
             if not resp.ok:        # surface bad creds — never let a 401 masquerade as a real session
                 print(f"[login] {role}: auth POST {api['route']} -> HTTP {resp.status}; "
                       "proceeding UNAUTHENTICATED (check the credential).")
                 return
-            field = api.get("visit_field")
-            if field:                                   # e.g. member: visit the returned verify_url
-                url = (resp.json() or {}).get(field)
-                if not url:
-                    print(f"[login] {role}: response had no '{field}'; proceeding unauthenticated.")
+            visit = api.get("visit")
+            if visit:    # e.g. member: build the verify URL from the response, on OUR frontend, and
+                data = resp.json() or {}    # visit it (the real /verify path mints the session cookie)
+                try:
+                    url = visit["path"].format(**data)
+                except Exception:
+                    print(f"[login] {role}: response missing fields for visit path; unauthenticated.")
                     return
                 page.goto(url)
                 ready(page)

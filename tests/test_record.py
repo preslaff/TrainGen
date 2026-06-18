@@ -200,15 +200,19 @@ def test_login_api_modes():
     assert p.posts == [("/api/admin/login", {"key": "secret-key"}, None)], "POSTs the env-resolved key"
     assert p.gotos == [], "no visit_field -> cookie-only, no navigation"
 
-    # member-style: POST returns verify_url -> login visits it
+    # member-style: POST to the backend base, then visit the verify URL built from the token
     os.environ["TRAINGEN_MEMBER_TEST_SECRET"] = "staging-secret"
-    p2 = _ReqPage(_Resp(ok=True, payload={"verify_url": "/member/login/verify?token=abc"}))
+    os.environ["TRAINGEN_API_BASE_URL"] = "http://localhost:8000"
+    p2 = _ReqPage(_Resp(ok=True, payload={"token": "abc"}))
     record.login(p2, "member", _LoginCfg({"member": {"api": {
+        "base_env": "TRAINGEN_API_BASE_URL",
         "route": "/api/v1/member/test-session",
         "headers": {"X-Test-Session-Secret": {"from_env": "TRAINGEN_MEMBER_TEST_SECRET"}},
-        "json": {"slug": "demo-hotel"}, "visit_field": "verify_url"}}}))
+        "json": {"slug": "demo-hotel"}, "visit": {"path": "/member/login/verify?token={token}"}}}}))
+    assert p2.posts[0][0] == "http://localhost:8000/api/v1/member/test-session", "POST hits the backend base"
     assert p2.posts[0][2] == {"X-Test-Session-Secret": "staging-secret"}, "header secret resolved"
-    assert p2.gotos == ["/member/login/verify?token=abc"], "visits the returned verify_url"
+    assert p2.gotos == ["/member/login/verify?token=abc"], "visits verify URL built from token on our base"
+    os.environ.pop("TRAINGEN_API_BASE_URL", None)
 
     # missing credential -> no POST at all (stay unauthenticated)
     os.environ.pop("TRAINGEN_ADMIN_PASSWORD", None)

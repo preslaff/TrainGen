@@ -28,15 +28,17 @@ defaults:
       api:
         route: "/api/admin/login"
         json: { key: { from_env: TRAINGEN_ADMIN_PASSWORD } }
-    # Member: magic-link only. Unblocks via a STAGING-ONLY test-session endpoint (Option 1,
-    # return-token) gated by member_test_session_secret + is_demo members. Uncomment once the
-    # platform ships it; TrainGen POSTs for a verify_url and visits it (the real /verify path).
-    # member:
-    #   api:
-    #     route: "/api/v1/member/test-session"
-    #     headers: { X-Test-Session-Secret: { from_env: TRAINGEN_MEMBER_TEST_SECRET } }
-    #     json:    { slug: "demo-hotel" }
-    #     visit_field: verify_url
+    # Member: magic-link only, unblocked via the STAGING-ONLY test-session endpoint (Option 1,
+    # return-token) on the BACKEND, gated by member_test_session_secret + is_demo members.
+    # TrainGen POSTs the secret, then visits /member/login/verify?token=… on the frontend — the
+    # real /verify path mints the session. Slug must be an is_demo member (seed_demo_tenants.py).
+    member:
+      api:
+        base_env: TRAINGEN_API_BASE_URL
+        route: "/api/v1/member/test-session"
+        headers: { X-Test-Session-Secret: { from_env: TRAINGEN_MEMBER_TEST_SECRET } }
+        json:    { slug: "demo-hotel" }
+        visit:   { path: "/member/login/verify?token={token}" }
 
   # Discovery (Layer 1 Extract) config — namespaced, discovery-only (DESIGN.md R5/§6).
   # Fill in to run `make extract`; env overrides: TRAINGEN_OPENAPI_URL, TRAINGEN_FRONTEND_APP.

@@ -113,12 +113,16 @@ class VisionMatcher:
             return self._fallback.match(step, controls)
         try:
             listing = "\n".join(
-                f"{i}: role={c.get('role')} name={c.get('name')!r} box={c.get('box')}"
+                f"{i}: role={c.get('role')} name={c.get('name')!r} title={c.get('title')!r} "
+                f"icon={c.get('icon')!r} near={c.get('near')!r} box={c.get('box')}"
                 for i, c in enumerate(controls))
             out = self.backend.complete_vision(
                 "You are binding a software-training step to a UI control. Look at the "
                 "screenshot and the numbered candidate controls (with their on-screen boxes). "
-                "Return JSON {index} = the control that performs the step, or -1 if none fits.",
+                "Some controls are icon-only with an empty name — use the screenshot, the icon "
+                "hint, and the row context (near) to identify them (e.g. a pencil = edit, a "
+                "trash = delete). Return JSON {index} = the control that performs the step, or "
+                "-1 if none fits.",
                 f"step intent: {step.get('intent')}\naction: {step.get('action')}\n"
                 f"candidates:\n{listing}",
                 screenshot, _VISION_SCHEMA)
@@ -172,13 +176,24 @@ class LLMMatcher:
             return self._fallback.match(step, controls)
 
 
+# bound but NOT durable — bind so the flow proceeds, but flag a test-id gap (MULTIMODAL §3)
+_FRAGILE_VIA = {"title", "css"}
+
+
 def _locator_from_control(c: dict):
+    """Most durable locator a control supports: testid > role+name > label > title > css.
+    `title`/`css` are escape hatches for icon-only controls with no accessible name — they
+    bind, but are flagged fragile so the platform can add a data-testid."""
     if c.get("testid"):
         return {"testid": c["testid"]}, "testid"
     if c.get("name") and c.get("role"):
         return {"role": c["role"], "name": c["name"]}, "role"
     if c.get("name"):
         return {"label": c["name"]}, "label"
+    if c.get("title"):                       # icon-button tooltip
+        return {"title": c["title"]}, "title"
+    if c.get("css"):                         # last resort: icon-only, no name/title
+        return {"css": c["css"]}, "css"
     return None, None
 
 
@@ -231,10 +246,14 @@ def verify_scenario(scenario: dict, driver, max_steps: int, matcher=None, expand
         if loc:
             st["locator"], st["bound_via"] = loc, via
             st["provenance"] = "crawl-only"          # discovered live, no code backing
-            st["verified"] = {"status": "bound_by_crawl", "name": control.get("name")}
+            st["verified"] = {"status": "bound_by_crawl", "name": control.get("name"), "via": via}
             st.pop("drop_candidate", None)
             bound_by_crawl.append(st["id"])
             confirmed += 1
+            if via in _FRAGILE_VIA:          # bound an icon-only control — durable only with a test-id
+                scenario.setdefault("open_questions", []).append(
+                    f"step '{st['id']}': bound an icon-only control via {via} "
+                    f"({control.get('icon') or control.get('near') or 'no name'}) — add a data-testid")
             if st is not last_step:          # read-mostly: never execute the final (mutating) action
                 driver.advance(st)
             continue
@@ -338,7 +357,10 @@ class PlaywrightDriver:
         return ("confirmed" if count == 1 else "ambiguous" if count > 1 else "unresolved"), count
 
     def snapshot(self):
-        """Real interactive controls on the current page (role + accessible name + testid)."""
+        """Real interactive controls on the current page. Includes ICON-ONLY controls (no
+        accessible name) — captured with a title/icon/row-context hint and a best-effort css
+        escape hatch — so VisionMatcher can still bind them by sight (MULTIMODAL C1). A nameless
+        bind is fragile-by-construction and is flagged as a test-id gap downstream."""
         try:
             controls = self.page.eval_on_selector_all(
                 "button,a,input,select,textarea,[role=button],[role=link],[role=combobox]",
@@ -349,14 +371,39 @@ class PlaywrightDriver:
                         input:(e.type==='checkbox'?'checkbox':e.type==='radio'?'radio':'textbox')}[tag] || tag);
                     const name = (e.getAttribute('aria-label') || e.innerText ||
                         e.placeholder || e.name || '').trim().slice(0, 80);
+                    const title = (e.getAttribute('title') || '').trim().slice(0, 80);
+                    const svg = e.querySelector('svg');               // icon hint (e.g. lucide-pencil)
+                    const icon = svg ? (svg.getAttribute('class') || '').trim().slice(0, 60) : '';
+                    let near = '', p = e.parentElement;               // nearest row context text
+                    for (let i = 0; i < 4 && p; i++) {
+                        const t = (p.innerText || '').trim();
+                        if (t && t.length > name.length) { near = t.split('\\n')[0].slice(0, 60); break; }
+                        p = p.parentElement;
+                    }
+                    function css(el) {                                // escape-hatch selector
+                        const td = el.getAttribute('data-testid');
+                        if (td) return '[data-testid="' + td + '"]';
+                        const parts = []; let n = el;
+                        for (let i = 0; i < 4 && n && n.nodeType === 1; i++) {
+                            const id = n.getAttribute('id');
+                            if (id) { parts.unshift('#' + CSS.escape(id)); break; }
+                            let s = n.tagName.toLowerCase();
+                            const par = n.parentElement;
+                            if (par) { const sib = [...par.children].filter(c => c.tagName === n.tagName);
+                                if (sib.length > 1) s += ':nth-of-type(' + (sib.indexOf(n) + 1) + ')'; }
+                            parts.unshift(s); n = par;
+                        }
+                        return parts.join(' > ');
+                    }
                     const r = e.getBoundingClientRect();
-                    return {role, name, testid: e.getAttribute('data-testid'),
+                    return {role, name, title, icon, near, testid: e.getAttribute('data-testid'),
+                            css: css(e),
                             box: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]};
-                }).filter(c => c.name)""")
+                }).filter(c => (c.name || c.title || c.icon || c.testid) && c.box[2] > 0)""")
         except Exception:
             return []
-        # drop framework/dev-overlay chrome that isn't part of the app
-        return [c for c in controls if "next.js dev" not in c["name"].lower()]
+        # drop framework/dev-overlay chrome; cap the list so vision token cost stays bounded
+        return [c for c in controls if "next.js dev" not in (c.get("name") or "").lower()][:60]
 
     def screenshot(self) -> bytes:
         try:

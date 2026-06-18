@@ -138,6 +138,7 @@ class _RoutePage:
     def get_by_placeholder(self, v): return ("placeholder", v)
     def get_by_label(self, v): return ("label", v)
     def get_by_role(self, role, name=None): return ("role", role, name)
+    def get_by_title(self, v): return ("title", v)
     def locator(self, css): return ("css", css)
 
 
@@ -147,7 +148,8 @@ def test_resolve_locator_routing():
     assert record.resolve_locator(p, {"placeholder": "Search"}) == ("placeholder", "Search")
     assert record.resolve_locator(p, {"label": "Region"}) == ("label", "Region")
     assert record.resolve_locator(p, {"role": "button", "name": "Zoom in"}) == ("role", "button", "Zoom in")
-    # css is the flagged escape hatch for non-semantic controls (map pins)
+    assert record.resolve_locator(p, {"title": "Edit"}) == ("title", "Edit")   # icon-button tooltip
+    # css is the flagged escape hatch for non-semantic controls (map pins, icon-only buttons)
     assert record.resolve_locator(p, {"css": ".marker-member"}) == ("css", ".marker-member")
     try:
         record.resolve_locator(p, {})

@@ -66,6 +66,23 @@ def test_vision_binds_chosen_control_via_semantic_locator():
     print("OK  vision: binds the screenshot-chosen control via its testid (durable, not coords)")
 
 
+def test_vision_binds_icononly_control_via_escape_hatch():
+    # a pen icon button on an announcement row: no name, no testid — only an icon + row context
+    icon = {"role": "button", "name": "", "title": "", "icon": "lucide lucide-pencil",
+            "near": "EU Tourism Digitalization Grant", "testid": None,
+            "css": "button:nth-of-type(3)", "box": [300, 120, 24, 24]}
+    scen = _scenario()
+    verify.verify_scenario(scen, VDriver([icon, CONTROLS[1]]), max_steps=12,
+                           matcher=verify.VisionMatcher(StubVision(index=0)))   # vision picks the pen
+    st = scen["steps"][0]
+    assert st["bound_via"] == "css" and st["locator"] == {"css": "button:nth-of-type(3)"}, \
+        "icon-only control binds via the css escape hatch (vision saw it; no semantic locator exists)"
+    assert st["provenance"] == "crawl-only"
+    assert any("icon-only" in q and "data-testid" in q for q in scen["open_questions"]), \
+        "fragile (icon-only) bind is flagged as a test-id gap"
+    print("OK  vision: icon-only control binds via css escape hatch + flags a test-id gap")
+
+
 def test_vision_falls_back_without_screenshot():
     m = verify.VisionMatcher(StubVision(index=1))
     # no screenshot -> heuristic fallback; intent 'Save the announcement' matches by token
@@ -109,6 +126,7 @@ def test_real_browser_perception_smoke():
 
 def main() -> int:
     test_vision_binds_chosen_control_via_semantic_locator()
+    test_vision_binds_icononly_control_via_escape_hatch()
     test_vision_falls_back_without_screenshot()
     test_real_browser_perception_smoke()
     print("\nall vision tests passed")

@@ -39,6 +39,14 @@ Claude the image + step intent + the DOM control list (each with its bounding bo
 data-named rows — the announcements/applications failures. **Lowest risk, highest immediate
 value; validates the whole thesis cheaply.**
 
+**Icon-only hardening (done):** the crawl snapshot now includes controls with NO accessible
+name (icon-only `<button>`s) — captured with an icon hint (`lucide-pencil`), the row-context
+text, and a best-effort css selector — so vision can still pick them by sight. Binding falls
+through testid > role+name > label > title > **css escape hatch**; a `title`/`css` bind is
+flagged as a `needs-a-data-testid` open_question (provenance stays `crawl-only`). Live: the
+announcement-row edit pencil (`lucide-pencil`, no name) now binds via css + flags the gap —
+where before it was invisible. Durable + deterministic once the platform adds the test-id.
+
 ### C2 — Visual discovery enrichment: framework-agnostic feature comprehension (the product lever)
 A crawl pass that screenshots each route and asks *what feature is this, what can a user do,
 what's the primary action* — augmenting the inventory with semantics the code can't give

@@ -79,6 +79,8 @@ def resolve_locator(page, loc: dict):
         return page.get_by_label(loc["label"])
     if "role" in loc:
         return page.get_by_role(loc["role"], name=loc.get("name"))
+    if "title" in loc:
+        return page.get_by_title(loc["title"])   # icon-button tooltip (semantic-ish)
     if "css" in loc:
         return page.locator(loc["css"])     # escape hatch — fragility-tagged
     raise ValueError(f"unresolvable locator: {loc}")

@@ -27,7 +27,8 @@ def main() -> None:
 
     cfg = dconfig.load_discovery_config()
     inventory = json.loads(open(args.inventory, encoding="utf-8").read())
-    make_driver = _playwright_driver_factory(cfg)
+    # crawl-only overlay dismissal (e.g. the onboarding tour) so vision reads each page's feature
+    make_driver = _playwright_driver_factory(cfg, extra_dismiss=cfg.enrich_dismiss)
     roles = args.roles.split(",") if args.roles else None
 
     doc = enrich.enrich(inventory, cfg, make_driver, roles=roles, max_routes=args.max_routes)

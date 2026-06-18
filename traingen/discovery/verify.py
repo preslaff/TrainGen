@@ -299,13 +299,15 @@ class PlaywrightDriver:
     """Drives one role's browser context against the seeded demo tenant. Reuses record.py's
     semantic locator resolution and login so verification and recording agree on selectors."""
 
-    def __init__(self, role: str, prod_cfg, locale: str = "en", scopes=("admin", "member")):
+    def __init__(self, role: str, prod_cfg, locale: str = "en", scopes=("admin", "member"),
+                 extra_dismiss=None):
         from playwright.sync_api import sync_playwright
 
         from .. import record as rec  # reuse resolve_locator / do_action / login
         self._rec = rec
         self._cfg = prod_cfg
         self._locale, self._scopes = locale, scopes
+        self._extra_dismiss = extra_dismiss or []   # crawl-only overlays (e.g. onboarding tour)
         self._pw = sync_playwright().start()
         self._browser = self._pw.chromium.launch(headless=prod_cfg.headless,
                                                  args=getattr(prod_cfg, "browser_args", []) or [])
@@ -317,12 +319,14 @@ class PlaywrightDriver:
     def goto(self, route: str, settle_ms: int = 0):
         self.page.goto(live_route(route, self._locale, self._scopes))
         self._rec.ready(self.page)            # domcontentloaded — networkidle hangs the streaming app
-        if not self._dismissed:               # clear the cookie banner once; the accept cookie persists
-            self._rec.dismiss_overlays(self.page, getattr(self._cfg, "dismiss", None) or [],
-                                       timeout_ms=3000)
-            self._dismissed = True
         if settle_ms:
-            self.page.wait_for_timeout(settle_ms)   # let WebGL/late content paint before a screenshot
+            self.page.wait_for_timeout(settle_ms)   # let WebGL/late content + any overlay paint
+        if not self._dismissed:               # clear cookie banner + crawl-only overlays once; persists
+            self._rec.dismiss_overlays(
+                self.page, (getattr(self._cfg, "dismiss", None) or []) + self._extra_dismiss,
+                timeout_ms=3000)
+            self._dismissed = True
+            self.page.wait_for_timeout(500)   # let the dismissed overlay animate out before screenshot
 
     def resolve(self, locator: dict):
         if not locator or not any(k in locator for k in ("testid", "placeholder", "label", "role")):
@@ -372,10 +376,11 @@ class PlaywrightDriver:
         self._ctx.close(); self._browser.close(); self._pw.stop()
 
 
-def _playwright_driver_factory(dcfg):
+def _playwright_driver_factory(dcfg, extra_dismiss=None):
     prod_cfg = prod_config.load_config()
     return lambda role: PlaywrightDriver(role, prod_cfg,
-                                         locale=dcfg.live_locale, scopes=tuple(dcfg.live_scopes))
+                                         locale=dcfg.live_locale, scopes=tuple(dcfg.live_scopes),
+                                         extra_dismiss=extra_dismiss)
 
 
 def run_from_file(drafts_path=None, cfg=None) -> dict:

@@ -54,6 +54,9 @@ class DiscoveryConfig:
     enrich_roles: list = field(default_factory=lambda: ["public", "admin"])  # member: pending login seam
     enrich_max_routes: int = 0          # 0 = no cap
     enrich_render_ms: int = 2500        # wait after load before screenshot (WebGL/late paint)
+    # Overlays to dismiss DURING THE CRAWL ONLY, so vision reads each page's own feature, not an
+    # overlay. NOT global: the onboarding tour stays fully recordable as its own scenario.
+    enrich_dismiss: list = field(default_factory=lambda: [{"role": "button", "name": "Skip"}])
 
 
 def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
@@ -87,4 +90,5 @@ def load_discovery_config(path=prod_config.MANIFEST) -> DiscoveryConfig:
                       else d.get("enrich_roles") or ["public", "admin"]),
         enrich_max_routes=int(os.environ.get("TRAINGEN_ENRICH_MAX_ROUTES", d.get("enrich_max_routes", 0))),
         enrich_render_ms=int(os.environ.get("TRAINGEN_ENRICH_RENDER_MS", d.get("enrich_render_ms", 2500))),
+        enrich_dismiss=d.get("enrich_dismiss") or [{"role": "button", "name": "Skip"}],
     )

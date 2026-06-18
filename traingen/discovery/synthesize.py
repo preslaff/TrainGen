@@ -20,7 +20,7 @@ from ..cache import digest
 from . import config as dconfig
 from .llm import get_backend
 
-PROMPT_VERSION = "0.1.0"
+PROMPT_VERSION = "0.2.0"   # 0.2.0: visual-enrichment grounding (M3 -> Layer 2)
 
 PROVENANCE = ["code:route+endpoint", "code:route", "code:endpoint", "inferred"]
 # weakest first — scenario provenance must equal the weakest step (DISCOVERY §7 / SYNTHESIZER §4)
@@ -39,14 +39,19 @@ steps, bind locators, tag provenance — nothing more.
 INPUT
 A slice of feature_inventory.json for ONE resource group: endpoints[], routes[], i18n,
 usage[], testid_gaps[]. Treat it as ground truth. You have NO other knowledge of the app.
+`visual` (when present) is a vision-read description of what each page ACTUALLY shows on a
+live screenshot — feature_title, summary, user_actions, primary_action, ui_nouns,
+rendered_language. It is advisory GROUNDING, captured by a crawl, NOT a control source.
 
 PROCEDURE
 1. RECONCILE endpoints and routes. The group's own `routes` may be empty or may not match
    the endpoints' noun. `candidate_routes` are same-role surfaces from elsewhere in the app
    whose noun may differ (e.g. an `announcements` API surfaced under a `communications`
-   page). Pick the best-matching surface from `routes` OR `candidate_routes`, bind to ITS
-   controls, and list the chosen route(s) in source_refs.routes. If no surface plausibly
-   matches, leave steps unbound and record it in open_questions — do not force a join.
+   page). Use `visual` to decide which surface TRULY hosts the feature and to reconcile
+   API-noun ↔ UI-noun (an `announcements` API whose page reads "Communications Management"
+   is the match). Pick the best surface from `routes` OR `candidate_routes`, bind to ITS
+   controls, list the chosen route(s) in source_refs.routes. If no surface plausibly matches,
+   leave steps unbound and record it in open_questions — do not force a join.
 2. SELECT TASKS: emit a scenario only for real user tasks (create, edit, publish, remove,
    search). Fold list/view into other scenarios as nav/verification, not standalone
    scenarios. Skip health checks, webhooks, internal/utility endpoints.
@@ -73,6 +78,14 @@ DEFAULTS
 - emphasis: highlight for clicks/nav; zoom for fills and the final confirmation; none for waits.
 - settle_ms: click 800, fill 400, select 600, submit/save 1200, publish/destructive 1500.
 - value: realistic sample data; for BG-facing fields use plausible Bulgarian content.
+
+USE VISUAL GROUNDING (when `visual` is present)
+- Title scenarios and write goals in the REAL UI terms the user sees (visual.feature_title /
+  ui_nouns), not the raw API noun.
+- Prefer the page's visual.primary_action as the scenario's climax step.
+- visual.user_actions hint at which tasks are real; still SELECT tasks per step 2.
+- visual is GROUNDING ONLY — never bind a locator to it; locators bind solely to inventoried
+  controls (step 4). A page named by vision but with no inventoried control => unbound step.
 
 HARD RULES
 - intent is a short objective, NOT a spoken sentence. Do not write voiced narration.
@@ -179,6 +192,38 @@ def group_by_resource(inventory: dict) -> dict:
     return groups
 
 
+_VISUAL_KEEP = ("feature_title", "summary", "user_actions", "primary_action",
+                "ui_nouns", "rendered_language")
+
+
+def load_visual_features(out_dir) -> dict:
+    """Map route -> trimmed visual feature from the M3 sidecar (empty if not crawled yet).
+    Crawl-derived (non-deterministic): it feeds Layer 2 (already a judgment step), never
+    Layer 1's inventory_hash."""
+    f = Path(out_dir) / "visual_features.json"
+    if not f.is_file():
+        return {}
+    try:
+        doc = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {feat["route"]: {k: feat[k] for k in _VISUAL_KEEP if k in feat}
+            for feat in doc.get("features", []) if feat.get("route")}
+
+
+def attach_visual(groups: dict, vfeat: dict) -> dict:
+    """Attach each group's routes' visual descriptions (own + candidate) for LLM grounding."""
+    if not vfeat:
+        return groups
+    for g in groups.values():
+        routes = ([r.get("route") for r in g.get("routes", [])]
+                  + [r.get("route") for r in g.get("candidate_routes", [])])
+        vis = [{"route": rt, **vfeat[rt]} for rt in routes if rt in vfeat]
+        if vis:
+            g["visual"] = vis
+    return groups
+
+
 def _control_index(group: dict):
     testids, labels, roles = set(), set(), set()
     for r in group["routes"] + group.get("candidate_routes", []):
@@ -247,7 +292,8 @@ def normalize(result: dict) -> dict:
 
 def _group_slice(group: dict) -> dict:
     return {k: group.get(k) for k in
-            ("resource", "endpoints", "routes", "candidate_routes", "i18n", "usage", "testid_gaps")}
+            ("resource", "endpoints", "routes", "candidate_routes", "visual",
+             "i18n", "usage", "testid_gaps")}
 
 
 def synthesize_group(group: dict, cfg, backend) -> dict:
@@ -276,7 +322,7 @@ def run(inventory: dict, cfg=None, backend=None, resources=None) -> dict:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     inv_hash = inventory.get("meta", {}).get("inventory_hash", "")
-    groups = group_by_resource(inventory)
+    groups = attach_visual(group_by_resource(inventory), load_visual_features(out_dir))
     only = set(resources) if resources else None   # synthesize just these groups (cheap trial)
     all_drafts, failures = [], {}
 

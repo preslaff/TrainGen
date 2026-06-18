@@ -149,7 +149,7 @@ binds durably instead of via the css escape hatch.
 **crawl-only** `enrich_dismiss` (default: the tour "Skip"), so the map reads each page's own
 feature; the tour stays fully recordable as its own scenario (omit the dismiss, drive Next /
 `point` each step). Clean member map: "Member Dashboard Overview", "Business Analytics
-Dashboard", "Bookings Management", "Business Profile Editor / Save Changes", etc. `tests/test_enrich.py` + `test_record` login-api tests. | ✅ framework-agnostic feature comprehension on real screenshots, all roles | enrichment logic offline ✓; live public+admin+member crawl ✓ |
+Dashboard", "Bookings Management", "Business Profile Editor / Save Changes", etc. `tests/test_enrich.py` + `test_record` login-api tests. **Fed into Layer 2:** `synthesize.py` attaches each group's routes' visual features as LLM **grounding** (advisory, never a locator source) — it reconciles API-noun↔UI-noun (live: `announcements` API → "Communications Management" page, confident surface + UI-term titles) and names scenarios in real terms; binding stays honest (unbound + open_question when no inventoried control, resolved downstream by verify+VisionMatcher). | ✅ framework-agnostic feature comprehension on real screenshots, all roles; grounds draft synthesis | enrichment logic offline ✓; live public+admin+member crawl ✓; live synth grounding ✓ |
 | **M4 — Visual QA (C3)** | frame-checks feeding the human gate | catches wrong-element/desync | verdict logic offline |
 | **M5 — Curation UI / control plane** | review surface (screenshots + provenance + ship-list) | humans steer, not edit YAML | — |
 | **M6 — Native seams (Driver/Recorder/Overlay)** | Appium + computer-use drivers | other platforms | — |

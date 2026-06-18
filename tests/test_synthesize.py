@@ -111,6 +111,32 @@ def test_candidate_routes_enable_cross_noun_binding():
     print("OK  candidate routes: announcements endpoints can bind to the communications page's controls")
 
 
+def test_visual_enrichment_grounding():
+    # the M3 sidecar grounds the announcements/communications group with the rendered UI feature
+    inv = {
+        "meta": {}, "i18n": {"strings": {}}, "usage": [], "testid_gaps": [],
+        "endpoints": [{"operation_id": "create_announcement", "method": "POST",
+                       "path": "/api/v1/admin/announcements", "resource_hint": "announcements",
+                       "security": ["admin"], "request_fields": [], "task_verb_hint": "create"}],
+        "routes": [{"route": "/admin/dashboard/communications", "resource_hint": "communications",
+                    "role_gate": "admin", "controls": [
+                        {"label": "New announcement", "role": "button", "testid": "comms-new"}]}],
+    }
+    vfeat = {"/admin/dashboard/communications": {
+        "feature_title": "Communications Management", "primary_action": "New Announcement",
+        "ui_nouns": ["Announcement", "Communications"]}}
+    groups = synthesize.attach_visual(synthesize.group_by_resource(inv), vfeat)
+    ann = groups["announcements"]
+    # the communications page is a candidate route for the announcements endpoints -> visual attaches
+    assert ann.get("visual"), "visual grounding attached to the announcements group"
+    assert ann["visual"][0]["feature_title"] == "Communications Management"
+    assert "visual" in synthesize._group_slice(ann), "visual reaches the LLM payload"
+
+    # no sidecar -> graceful no-op (synthesize still works pre-enrichment)
+    assert synthesize.attach_visual(synthesize.group_by_resource(inv), {})["announcements"].get("visual") is None
+    print("OK  synthesize: visual enrichment grounds the API-noun->UI-noun bridge; absent sidecar is a no-op")
+
+
 def test_validation_accepts_and_rejects():
     group = synthesize.group_by_resource(_inventory())["partners"]
     assert synthesize.validate_drafts(PARTNERS_DRAFTS, group) == [], "clean draft must validate"
@@ -164,6 +190,7 @@ def test_run_and_cache():
 def main() -> int:
     test_grouping()
     test_candidate_routes_enable_cross_noun_binding()
+    test_visual_enrichment_grounding()
     test_validation_accepts_and_rejects()
     test_normalize_derives_provenance_and_rejects_bare_role()
     test_run_and_cache()

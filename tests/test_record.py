@@ -174,13 +174,16 @@ class _Resp:
 
 
 class _ReqPage:
-    """Captures request.post calls and records goto navigations (for visit_field)."""
-    def __init__(self, resp):
+    """Captures request.post calls and records goto navigations; serves cookies for await_cookie."""
+    def __init__(self, resp, cookies=None):
         self._resp, self.posts, self.gotos = resp, [], []
         self.request = self
+        self.context = self
+        self._cookies = cookies or []
     def post(self, url, data=None, headers=None):
         self.posts.append((url, data, headers)); return self._resp
     def goto(self, url): self.gotos.append(url)
+    def cookies(self): return self._cookies
     def wait_for_load_state(self, state=None): pass
     def evaluate(self, expr): return 0
     def wait_for_timeout(self, ms): pass
@@ -203,12 +206,13 @@ def test_login_api_modes():
     # member-style: POST to the backend base, then visit the verify URL built from the token
     os.environ["TRAINGEN_MEMBER_TEST_SECRET"] = "staging-secret"
     os.environ["TRAINGEN_API_BASE_URL"] = "http://localhost:8000"
-    p2 = _ReqPage(_Resp(ok=True, payload={"token": "abc"}))
+    p2 = _ReqPage(_Resp(ok=True, payload={"token": "abc"}), cookies=[{"name": "member_session"}])
     record.login(p2, "member", _LoginCfg({"member": {"api": {
         "base_env": "TRAINGEN_API_BASE_URL",
         "route": "/api/v1/member/test-session",
         "headers": {"X-Test-Session-Secret": {"from_env": "TRAINGEN_MEMBER_TEST_SECRET"}},
-        "json": {"slug": "demo-hotel"}, "visit": {"path": "/member/login/verify?token={token}"}}}}))
+        "json": {"slug": "demo-hotel"},
+        "visit": {"path": "/member/login/verify?token={token}", "await_cookie": "member_session"}}}}))
     assert p2.posts[0][0] == "http://localhost:8000/api/v1/member/test-session", "POST hits the backend base"
     assert p2.posts[0][2] == {"X-Test-Session-Secret": "staging-secret"}, "header secret resolved"
     assert p2.gotos == ["/member/login/verify?token=abc"], "visits verify URL built from token on our base"

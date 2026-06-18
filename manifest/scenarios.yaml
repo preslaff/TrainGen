@@ -38,7 +38,7 @@ defaults:
         route: "/api/v1/member/test-session"
         headers: { X-Test-Session-Secret: { from_env: TRAINGEN_MEMBER_TEST_SECRET } }
         json:    { slug: "demo-hotel" }
-        visit:   { path: "/member/login/verify?token={token}" }
+        visit:   { path: "/member/login/verify?token={token}", await_cookie: member_session }
 
   # Discovery (Layer 1 Extract) config — namespaced, discovery-only (DESIGN.md R5/§6).
   # Fill in to run `make extract`; env overrides: TRAINGEN_OPENAPI_URL, TRAINGEN_FRONTEND_APP.

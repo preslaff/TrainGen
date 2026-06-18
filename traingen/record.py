@@ -192,6 +192,16 @@ def login(page, role: str, cfg: config.Config) -> None:
                     return
                 page.goto(url)
                 ready(page)
+                # the verify page sets the cookie ASYNC (client verify -> set cookie -> redirect);
+                # wait for the session cookie before returning, or we navigate away mid-verify.
+                want = visit.get("await_cookie")
+                if want:
+                    for _ in range(int(visit.get("await_timeout_ms", 15000) / 500)):
+                        if any(c["name"] == want for c in page.context.cookies()):
+                            break
+                        page.wait_for_timeout(500)
+                    else:
+                        print(f"[login] {role}: '{want}' cookie not set after verify; unauthenticated.")
         except Exception as e:
             print(f"[login] {role}: auth failed ({e}); proceeding unauthenticated.")
             return

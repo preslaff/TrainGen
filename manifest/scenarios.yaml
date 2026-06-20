@@ -268,6 +268,288 @@ scenarios:
         emphasis: zoom
         settle_ms: 1500
 
+  # ── Member dashboard section walkthroughs ──────────────────────────────────────
+  # One safe, read-only walkthrough per dashboard section: log in as the demo member,
+  # open the section from the sidebar (nav via data-tour — a stable, language-neutral hook),
+  # dwell while the narration explains it, then `point` at the section's primary action where
+  # one exists (no clicks that mutate data). entry_route + locators are locale-neutral, so each
+  # records correctly in BG and EN. The onboarding banner is dismissed pre-roll. Real end-to-end
+  # task scenarios (add an offering, edit+save profile, …) are a later, per-section layer.
+  - scenario_id: member-profile
+    title: { bg: "Вашият бизнес профил", en: "Your business profile" }
+    role: member
+    goal: >
+      Show a partner-member where to edit their public business profile — description,
+      contact and media — and how to save changes so visitors see accurate details.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-profile
+        intent: "Open the Profile section from the sidebar"
+        locator: { css: '[data-tour="nav-profile"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-profile
+        intent: "This is your business profile, where you keep your public details current"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: point-save
+        intent: "Explain that Save Changes publishes your edits so visitors see them"
+        locator: { role: button, name_key: "memberDashboard.saveChanges", name: "Save Changes" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+
+  - scenario_id: member-offerings
+    title: { bg: "Вашите предложения", en: "Your offerings" }
+    role: member
+    goal: >
+      Show a partner-member where they list the services and products they provide,
+      and how to add a new offering.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-offerings
+        intent: "Open the Offerings section from the sidebar"
+        locator: { css: '[data-tour="nav-offerings"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-offerings
+        intent: "These are your offerings — the services and products visitors can discover"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: point-add
+        intent: "Explain that Add Offering creates a new listing for visitors to find"
+        locator: { role: button, name_key: "memberDashboard.addOffering", name: "Add Offering" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+
+  - scenario_id: member-events
+    title: { bg: "Вашите събития", en: "Your events" }
+    role: member
+    goal: >
+      Show a partner-member where they publish and manage their upcoming events.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-events
+        intent: "Open the Events section from the sidebar"
+        locator: { css: '[data-tour="nav-events"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-events
+        intent: "Here you publish and manage the events you host for visitors"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: point-add
+        intent: "Explain that Add Event publishes a new event to your profile"
+        locator: { role: button, name_key: "memberDashboard.addEvent", name: "Add Event" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+
+  - scenario_id: member-stories
+    title: { bg: "Вашите истории", en: "Your stories" }
+    role: member
+    goal: >
+      Show a partner-member where they share updates and stories that reach visitors.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-stories
+        intent: "Open the Stories section from the sidebar"
+        locator: { css: '[data-tour="nav-stories"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-stories
+        intent: "Stories let you share updates and news that reach and engage visitors"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: point-add
+        intent: "Explain that Add Story publishes a new update to your audience"
+        locator: { role: button, name_key: "memberDashboard.addStory", name: "Add Story" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+
+  - scenario_id: member-reviews
+    title: { bg: "Вашите отзиви", en: "Your reviews" }
+    role: member
+    goal: >
+      Show a partner-member where they read visitor feedback and respond to build trust.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-reviews
+        intent: "Open the Reviews section from the sidebar"
+        locator: { css: '[data-tour="nav-reviews"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-reviews
+        intent: "Here you read visitor reviews and respond to them to build trust"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+
+  - scenario_id: member-bookings
+    title: { bg: "Вашите резервации", en: "Your bookings" }
+    role: member
+    goal: >
+      Show a partner-member where they track incoming reservation requests and keep them organised.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-bookings
+        intent: "Open the Bookings section from the sidebar"
+        locator: { css: '[data-tour="nav-bookings"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-bookings
+        intent: "Here you track incoming reservation requests and filter them by status"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+
+  - scenario_id: member-analytics
+    title: { bg: "Вашите анализи", en: "Your analytics" }
+    role: member
+    goal: >
+      Show a partner-member where they see how visitors find and engage with their profile.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-analytics
+        intent: "Open the Analytics section from the sidebar"
+        locator: { css: '[data-tour="nav-analytics"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-analytics
+        intent: "Here you see how visitors find and engage with your profile over time"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+
+  - scenario_id: member-qr-codes
+    title: { bg: "Вашите QR кодове", en: "Your QR codes" }
+    role: member
+    goal: >
+      Show a partner-member how to generate a QR code that takes visitors straight to their profile.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-qr
+        intent: "Open the QR codes section from the sidebar"
+        locator: { css: '[data-tour="nav-qrCodes"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-qr
+        intent: "Here you generate a QR code that takes visitors straight to your profile"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: point-format
+        intent: "Explain that you can download the code as a PNG or SVG to print or share"
+        locator: { role: button, name: "PNG" }   # format label — English in all locales
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+
+  - scenario_id: member-marketplace
+    title: { bg: "Маркетплейс за партньори", en: "The partner marketplace" }
+    role: member
+    goal: >
+      Show a partner-member where they discover deals and listings from other partners.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    dismiss: [ { testid: onboarding-banner-dismiss } ]
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle
+        emphasis: none
+        settle_ms: 1200
+      - id: go-marketplace
+        intent: "Open the Marketplace section from the sidebar"
+        locator: { css: '[data-tour="nav-marketplace"]' }
+        action: click
+        emphasis: highlight
+        settle_ms: 1600
+      - id: view-marketplace
+        intent: "Here you discover deals and listings from other partners around you"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+
   - scenario_id: add-partner-profile
     title:
       bg: "Добавяне на партньорски профил"

@@ -10,6 +10,7 @@ Each stage is cacheable; unchanged inputs are skipped. (subtitle/discover are v0
 from __future__ import annotations
 
 import argparse
+import json
 
 from traingen import choreograph, compose, config, narrate, record, script, subtitle
 
@@ -27,11 +28,30 @@ def run_one(scenario_id: str, lang: str, cfg: config.Config) -> None:
     print(f"{tag} done -> {final}  (+ {vtt.name})")
 
 
+def recompose_one(scenario_id: str, lang: str, cfg: config.Config) -> None:
+    """Re-run only subtitle + compose from the cached record (script/narrate/record_log on
+    disk) — no browser, no re-record. Fixes alignment/compose changes on existing recordings."""
+    ld = config.lang_dir(scenario_id, lang)
+    tag = f"[{scenario_id}/{lang}]"
+    try:
+        sdoc = json.loads((ld / "script.json").read_text(encoding="utf-8"))
+        ndoc = json.loads((ld / "narrate.json").read_text(encoding="utf-8"))
+        rlog = json.loads((ld / "record_log.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        print(f"{tag} skip recompose — no cached record (run it first)")
+        return
+    print(f"{tag} subtitle");     vtt = subtitle.run(sdoc, ndoc, rlog, cfg)
+    print(f"{tag} compose");      final = compose.run(rlog, ndoc, cfg)
+    print(f"{tag} recomposed -> {final}  (+ {vtt.name})")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="TrainGen pipeline")
     ap.add_argument("--scenario", help="scenario_id from the manifest")
     ap.add_argument("--all", action="store_true", help="run every scenario")
     ap.add_argument("--lang", default="bg", help="comma-separated, e.g. bg,en")
+    ap.add_argument("--recompose", action="store_true",
+                    help="re-run subtitle+compose from the cached record (no re-record)")
     ap.add_argument("--discover", action="store_true",
                     help="run discovery (extract→synthesize→verify) instead of the pipeline")
     ap.add_argument("--role", action="append", help="restrict discovery to role(s) (repeatable)")
@@ -55,9 +75,10 @@ def main() -> None:
     ids = ([s["scenario_id"] for s in config.load_scenarios()]
            if args.all else [args.scenario])
 
+    step = recompose_one if args.recompose else run_one
     for sid in ids:
         for lang in langs:
-            run_one(sid, lang, cfg)
+            step(sid, lang, cfg)
 
 
 if __name__ == "__main__":

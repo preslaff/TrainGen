@@ -64,6 +64,8 @@ def run(script_doc: dict, narrate_doc: dict, record_log: dict, cfg, aligner=None
     duration = {s["id"]: s.get("duration", 0.0) for s in narrate_doc.get("steps", [])}
     wav = {s["id"]: config.OUT / s["wav"] for s in narrate_doc.get("steps", []) if s.get("wav")}
 
+    # compose trims the pre-roll so the body starts at t0; measured offsets are already relative
+    # to t0, so cues align directly (no rec_offset shift needed here).
     cues = []
     for st in record_log["steps"]:
         text = (narration.get(st["id"]) or "").strip()

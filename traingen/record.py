@@ -277,6 +277,29 @@ def login(page, role: str, cfg: config.Config, lang=None) -> None:
         ready(page)
 
 
+def rec_offset(record_log: dict) -> float:
+    """Seconds of video pre-roll (login/goto/dismiss) before step timing's t0. compose +
+    subtitle add this to each step's measured offset so narration aligns to the UI, not to
+    video frame 0. Uses the value stored at record time; for legacy logs without it, derives
+    it as (video duration - last measured_end) ≈ the pre-roll, so old recordings re-compose
+    correctly without re-recording."""
+    off = record_log.get("rec_offset")
+    if off is not None:
+        return float(off)
+    steps = record_log.get("steps") or []
+    if not steps or not record_log.get("video"):
+        return 0.0
+    try:
+        import subprocess
+        dur = float(subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(config.OUT / record_log["video"])],
+            capture_output=True, text=True).stdout.strip())
+        return max(0.0, round(dur - max(s["measured_end"] for s in steps), 3))
+    except Exception:
+        return 0.0
+
+
 def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -288,6 +311,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
         "lang": lang,
         "fps": cfg.fps,
         "rec_start_pad": cfg.rec_start_pad_s,
+        "rec_offset": 0.0,        # video pre-roll before t0; set below (see rec_offset note)
         "steps": [],
     }
 
@@ -300,6 +324,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
             record_video_size=cfg.viewport,
         )
         page = ctx.new_page()
+        t_video = time.monotonic()      # video recording begins ~here (at page creation)
         for js in ("cursor.js", "highlight.js", "zoom.js"):     # demo-mode overlays (BLUEPRINT §5)
             page.add_init_script(path=str(OVERLAYS / js))
 
@@ -312,6 +337,10 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
                          lang=lang, messages_dir=mdir)
 
         t0 = time.monotonic()
+        # Pre-roll (login + goto + dismiss) is in the video BEFORE step timing starts. measured_*
+        # are relative to t0, but the video's frame 0 is t_video — so compose/subtitle must shift
+        # narration by this offset, or audio leads the UI (badly for slow member login). (BLUEPRINT §4)
+        rec_offset = round(t0 - t_video, 3)
         page.wait_for_timeout(int(cfg.rec_start_pad_s * 1000))   # rec_start_pad
 
         for step in scenario["steps"]:
@@ -352,6 +381,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
         shutil.move(video.path(), str(dst))
         browser.close()
 
+    log["rec_offset"] = rec_offset
     log["video"] = str(dst.relative_to(config.OUT))
     (ld / "record_log.json").write_text(
         json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")

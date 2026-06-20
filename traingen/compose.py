@@ -10,7 +10,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-from . import config
+from . import config, record
 
 ASSETS = config.ROOT / "assets"
 _CANON_FPS = 30
@@ -18,8 +18,13 @@ _CANON_FPS = 30
 
 def _build_body(record_log: dict, narrate_doc: dict, cfg, body):
     video = config.OUT / record_log["video"]
+    # Trim the pre-roll (login/goto/dismiss) so the body starts at t0 — the ready UI — and the
+    # measured offsets (relative to t0) align directly. Otherwise narration leads the UI by the
+    # pre-roll (badly for slow member login) and the video opens on dead login footage.
+    off = record.rec_offset(record_log)
+    seek = ["-ss", f"{off:.3f}"] if off > 0.05 else []
     wav_by_id = {s["id"]: config.OUT / s["wav"] for s in narrate_doc["steps"]}
-    inputs, filters, labels = ["-i", str(video)], [], []
+    inputs, filters, labels = [*seek, "-i", str(video)], [], []
     for i, st in enumerate(record_log["steps"]):
         inputs += ["-i", str(wav_by_id[st["id"]])]
         ms = int(round(st["measured_start"] * 1000))

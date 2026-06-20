@@ -161,6 +161,66 @@ scenarios:
         emphasis: highlight
         settle_ms: 2500
 
+  # Phase 0 dogfood #3 — public partner directory -> a partner's public profile. A connected
+  # visitor journey: browse the directory, search, then open a partner to explore their profile.
+  # Locale-neutral (entry_route + *_key locators). The directory lists REAL members in random
+  # order, so we open "the first card" via a structural href selector (the app builds the
+  # correctly-localized /member/<slug> link — we click it rather than construct the route, since
+  # the PUBLIC profile is /[locale]/member/<slug>, locale-first, unlike the member dashboard).
+  - scenario_id: find-partner
+    title:
+      bg: "Намиране на партньор в указателя"
+      en: "Finding a partner in the directory"
+    role: public
+    goal: >
+      Show a visitor how to browse the tourism partner directory, search and filter it, then
+      open a partner's profile to see their offerings, reviews and how to get in touch.
+    entry_route: "/directory"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: browse-directory
+        intent: "Browse the directory of tourism partners across Bulgaria"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+      - id: search-partner
+        intent: "Search the directory for the kind of partner you're looking for"
+        locator: { placeholder_key: "directory.search", placeholder: "Search businesses..." }
+        action: fill
+        value: "hotel"
+        emphasis: zoom
+        settle_ms: 1500
+      - id: point-filters
+        intent: "Explain that you can narrow results by category, region and price"
+        locator: { role: button, name_key: "directory.allCategories", name: "All Categories" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+      - id: open-profile
+        intent: "Open a partner to see their full profile"
+        locator: { css: 'a[href*="/member/"]' }   # first result card; app builds the localized href
+        action: click
+        emphasis: zoom
+        settle_ms: 1800
+      - id: view-profile
+        intent: "This is the partner's public profile, with their details, offerings and reviews"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: point-add-itinerary
+        intent: "Explain that visitors can add this partner to their trip itinerary"
+        locator: { role: button, name_key: "memberProfile.addToItinerary", name: "Add to Itinerary" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+      - id: point-write-review
+        intent: "Explain that visitors can leave a review to share their experience"
+        locator: { role: button, name_key: "memberProfile.writeReview", name: "Write a Review" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+
   # Member onboarding tour walkthrough. Public-of-the-member flow: log in as the demo member,
   # launch the guided tour ("Take a tour" — works regardless of tour_completed_at), and step
   # through its 12 cards. The record loop clicks THEN dwells, so each "Next" reveals the next

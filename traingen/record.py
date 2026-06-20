@@ -12,12 +12,53 @@ import shutil
 import time
 from pathlib import Path
 
-from . import config
+from . import config, i18n
 
 OVERLAYS = Path(__file__).parent / "overlays"
 
 # Steps that act on the page, not on a located element (skip cursor/emphasis/box).
-_ELEMENTLESS = {"wait", "settle", "navigate"}
+_ELEMENTLESS = {"wait", "settle", "navigate", "wait_for"}
+
+# Known UI locales (next-intl [locale] segment). Used to strip/insert the locale in routes.
+_LOCALES = {"en", "bg", "de", "ro"}
+# Locator fields that carry an i18n KEY (resolved per language) -> their concrete counterpart.
+_KEY_FIELDS = {"name_key": "name", "placeholder_key": "placeholder",
+               "label_key": "label", "title_key": "title"}
+
+
+def localize_route(route: str, lang: str | None, scopes=("admin", "member")) -> str:
+    """Insert the run's locale into a (language-neutral) route, matching the app's layout:
+    /explore -> /bg/explore ; /member/dashboard -> /member/bg/dashboard. Any locale already
+    present is stripped first, so the SSOT can stay neutral OR carry a stale /en — both work."""
+    parts = [p for p in (route or "/").strip("/").split("/") if p]
+    if parts and parts[0] in scopes:                       # strip an existing post-scope locale
+        if len(parts) > 1 and parts[1] in _LOCALES:
+            parts.pop(1)
+    elif parts and parts[0] in _LOCALES:                   # strip a leading locale
+        parts.pop(0)
+    if not lang:
+        return "/" + "/".join(parts)
+    if parts and parts[0] in scopes:
+        return "/" + "/".join([parts[0], lang, *parts[1:]])
+    return "/" + "/".join([lang, *parts])
+
+
+def localize_locator(loc: dict, lang: str | None, messages_dir: str | None) -> dict:
+    """Resolve any i18n-key locator field (*_key) to the rendered string for `lang` via the
+    app's message catalog, so a language-neutral SSOT records a correct /en AND /bg video.
+    Plain locators (testid/css/literal name) pass through unchanged."""
+    if not loc or not any(k in loc for k in _KEY_FIELDS):
+        return loc
+    out = {k: v for k, v in loc.items() if k not in _KEY_FIELDS}
+    for kf, base in _KEY_FIELDS.items():
+        if kf not in loc:
+            continue
+        val = i18n.resolve(lang, loc[kf], messages_dir) if lang else None
+        if val is not None:
+            out[base] = val
+        elif base not in out:                # unresolved (no catalog/key): keep the literal if any,
+            out[base] = loc[kf]              # else fall back to the key so the failure is visible
+    return out
 
 
 def ready(page) -> None:
@@ -29,14 +70,14 @@ def ready(page) -> None:
         pass
 
 
-def dismiss_overlays(page, locators, timeout_ms: int = 6000) -> None:
+def dismiss_overlays(page, locators, timeout_ms: int = 6000, lang=None, messages_dir=None) -> None:
     """Best-effort close of pre-roll overlays (cookie consent, etc.) BEFORE recording timing
     starts — so they never become a taught step and don't blur/obscure the recorded flow.
     Each is a semantic locator; WAIT for it to appear (consent banners often mount a few
     seconds after load), then click. If it never appears, skip; never fail the run."""
     for loc in locators or []:
         try:
-            el = resolve_locator(page, loc).first
+            el = resolve_locator(page, loc, lang, messages_dir).first
             el.wait_for(state="visible", timeout=timeout_ms)   # raises if it never shows -> skip
             el.click(timeout=2000)
             page.wait_for_timeout(400)
@@ -64,13 +105,17 @@ def settle(page, quiet_ms: int = 1000, timeout_ms: int = 15000) -> None:
         page.wait_for_timeout(200)
 
 
-def resolve_locator(page, loc: dict):
+def resolve_locator(page, loc: dict, lang=None, messages_dir=None):
     """Locator priority: testid > placeholder > label > role+name (BLUEPRINT §3).
+
+    i18n-key fields (name_key/placeholder_key/label_key/title_key) resolve to the rendered
+    string for `lang` first, so the same neutral locator records /en and /bg correctly.
 
     `css` is a FLAGGED escape hatch for genuinely non-semantic UIs — e.g. Mapbox pins
     that are real DOM nodes but carry only a class, no testid/accessible name
     (MULTIMODAL.md §1/§8). Prefer filing a test-id gap over leaving a css locator.
     """
+    loc = localize_locator(loc, lang, messages_dir)
     if "testid" in loc:
         return page.get_by_test_id(loc["testid"])
     if "placeholder" in loc:
@@ -86,8 +131,10 @@ def resolve_locator(page, loc: dict):
     raise ValueError(f"unresolvable locator: {loc}")
 
 
-def do_action(page, el, step: dict, cfg=None) -> None:
+def do_action(page, el, step: dict, cfg=None, lang=None) -> None:
     action = step["action"]
+    mdir = getattr(cfg, "messages_dir", None)
+    scopes = tuple(getattr(cfg, "locale_scopes", ["admin", "member"]))
     if action == "click":
         n = max(1, int(step.get("repeat", 1)))     # e.g. zoom-in N times on a map control
         for i in range(n):
@@ -115,10 +162,18 @@ def do_action(page, el, step: dict, cfg=None) -> None:
         el.press(step.get("value", "Enter"))
     elif action == "wait":
         page.wait_for_timeout(int(step.get("value", 500)))
+    elif action == "wait_for":
+        # block until the step's locator is visible — for content that opens late/async (e.g. a
+        # tour overlay that races the dwell). Robust whether it opens in 0.1s or several seconds.
+        try:
+            resolve_locator(page, step["locator"], lang, mdir).first.wait_for(
+                state="visible", timeout=int(step.get("timeout_ms", 15000)))
+        except Exception:
+            pass   # best effort; if it never appears the following steps will simply not bind
     elif action == "settle":
         settle(page)
     elif action == "navigate":
-        page.goto(step.get("value", "/"))
+        page.goto(localize_route(step.get("value", "/"), lang, scopes))
         ready(page)
     else:
         raise ValueError(f"unknown action: {action}")
@@ -133,7 +188,7 @@ def _resolve_secrets(d: dict) -> dict:
     return out
 
 
-def login(page, role: str, cfg: config.Config) -> None:
+def login(page, role: str, cfg: config.Config, lang=None) -> None:
     """Authenticate as `role` against the seeded demo tenant (BLUEPRINT §11). Per-role config
     lives in the manifest defaults `login:` block; secrets come from env vars and are NEVER
     stored in the git-tracked manifest.
@@ -215,10 +270,10 @@ def login(page, role: str, cfg: config.Config) -> None:
         value = os.environ.get(f["from_env"]) if f.get("from_env") else f.get("value", "")
         if not value:
             return  # missing credential — bail unauthenticated rather than submit a blank form
-        resolve_locator(page, f["locator"]).first.fill(value)
+        resolve_locator(page, f["locator"], lang, getattr(cfg, "messages_dir", None)).first.fill(value)
     submit = lc.get("submit")
     if submit:
-        resolve_locator(page, submit).first.click()
+        resolve_locator(page, submit, lang, getattr(cfg, "messages_dir", None)).first.click()
         ready(page)
 
 
@@ -248,10 +303,13 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
         for js in ("cursor.js", "highlight.js", "zoom.js"):     # demo-mode overlays (BLUEPRINT §5)
             page.add_init_script(path=str(OVERLAYS / js))
 
-        login(page, scenario["role"], cfg)
-        page.goto(scenario["entry_route"])
+        mdir = getattr(cfg, "messages_dir", None)
+        scopes = tuple(getattr(cfg, "locale_scopes", ["admin", "member"]))
+        login(page, scenario["role"], cfg, lang)
+        page.goto(localize_route(scenario["entry_route"], lang, scopes))
         ready(page)
-        dismiss_overlays(page, (cfg.dismiss or []) + scenario.get("dismiss", []))
+        dismiss_overlays(page, (cfg.dismiss or []) + scenario.get("dismiss", []),
+                         lang=lang, messages_dir=mdir)
 
         t0 = time.monotonic()
         page.wait_for_timeout(int(cfg.rec_start_pad_s * 1000))   # rec_start_pad
@@ -261,9 +319,9 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
             elementless = step.get("action") in _ELEMENTLESS or not step.get("locator")
 
             if elementless:
-                do_action(page, None, step, cfg)                 # wait / settle / navigate
+                do_action(page, None, step, cfg, lang)           # wait / settle / navigate
             else:
-                el = resolve_locator(page, step["locator"]).first
+                el = resolve_locator(page, step["locator"], lang, mdir).first
                 el.scroll_into_view_if_needed()
                 box = el.bounding_box()
                 if box:                                          # glide the cursor, then emphasise
@@ -274,7 +332,7 @@ def run(scenario: dict, timeline: dict, cfg: config.Config) -> dict:
                         page.evaluate("(b) => window.__tg && window.__tg.highlight(b)", box)
                     elif emphasis == "zoom":
                         page.evaluate("(b) => window.__tg && window.__tg.zoom(b, 1.4)", box)
-                do_action(page, el, step, cfg)
+                do_action(page, el, step, cfg, lang)
 
             plan = plan_by_id[step["id"]]
             elapsed = (time.monotonic() - t0) - start

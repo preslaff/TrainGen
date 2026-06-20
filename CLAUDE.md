@@ -50,6 +50,8 @@ Language-neutral. Defines **intent + semantic targets only**. Narration text is 
 
 The full chain runs **once per language**. BG and EN narration durations differ → different pacing → record twice. Re-running Playwright is cheap and guarantees each language stays perfectly synced. Output: `out/<scenario>/<lang>/final.mp4` + `final.<lang>.vtt` (soft VTT sidecar for the help-center player; hard-burn only for social cuts).
 
+**The recorded UI is in the run's language too** (not just the narration). The SSOT stays language-neutral: `entry_route`/`navigate` carry no locale (`/explore`, not `/en/explore`) and `record.localize_route` inserts the run's lang at record time (after an `admin`/`member` scope segment); locators name controls by i18n **key** (`name_key`/`placeholder_key`/`label_key`/`title_key`) which `record.localize_locator` resolves to the rendered string via the app's next-intl catalog (`TRAINGEN_MESSAGES_DIR`, see `traingen/i18n.py`). `testid`/`css` and genuinely-English controls (e.g. Mapbox "Zoom in") stay literal. No catalog / no lang → falls back to the literal value, so offline runs still work.
+
 ## Conventions and constraints
 
 - **Recording is Chromium at fixed 1920×1080@30fps.** Headed (`headless=False`) gives the truest rendering, but **headed Chromium can hard-freeze some GPUs** (confirmed amdgpu/Polaris display hang: `flip_done timed out`). Prefer `TRAINGEN_HEADLESS=1` + `TRAINGEN_BROWSER_ARGS=--disable-gpu,--disable-dev-shm-usage` on AMD/older GPUs; both are `.env`-configurable (`cfg.browser_args` → `chromium.launch(args=…)`).

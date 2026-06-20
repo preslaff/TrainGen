@@ -69,12 +69,34 @@ def test_do_action_dispatch():
     record.do_action(FakePage([0]), el, {"action": "click"})
     assert ("press", "Enter") in el.calls and ("fill", "hi") in el.calls and ("click",) in el.calls
 
-    page = FakePage([0])                              # elementless navigate (el=None)
-    record.do_action(page, None, {"action": "navigate", "value": "/en"})
-    assert page.goto_url == "/en"
+    page = FakePage([0])                              # elementless navigate (el=None) — locale-neutral
+    record.do_action(page, None, {"action": "navigate", "value": "/explore"})
+    assert page.goto_url == "/explore", "no lang -> neutral route"
+
+    page2 = FakePage([0])                             # navigate localizes to the run's lang
+    record.do_action(page2, None, {"action": "navigate", "value": "/explore"}, lang="bg")
+    assert page2.goto_url == "/bg/explore", "navigate inserts the run locale"
 
     record.do_action(FakePage([7, 7, 7, 7]), None, {"action": "settle"})  # routes to settle, no el
-    print("OK  do_action: press/fill/click on element; navigate+settle are element-less")
+    print("OK  do_action: press/fill/click on element; navigate localizes route; settle element-less")
+
+
+def test_wait_for_action():
+    calls = []
+    class FakeLoc:
+        @property
+        def first(self): return self
+        def wait_for(self, state=None, timeout=None): calls.append((state, timeout))
+    orig = record.resolve_locator
+    try:
+        record.resolve_locator = lambda page, loc, *a, **k: FakeLoc()
+        record.do_action(FakePage([0]), None,
+                         {"action": "wait_for", "locator": {"role": "button", "name": "Next"},
+                          "timeout_ms": 9000})
+        assert calls == [("visible", 9000)], "wait_for blocks until the locator is visible"
+    finally:
+        record.resolve_locator = orig
+    print("OK  do_action: wait_for blocks until late-opening content is visible (e.g. a tour)")
 
 
 def test_point_is_noop():
@@ -115,16 +137,16 @@ def test_dismiss_overlays(monkeypatch=None):
     orig = record.resolve_locator
     try:
         sink = []
-        record.resolve_locator = lambda page, loc: FakeLoc(True, sink)
+        record.resolve_locator = lambda page, loc, *a, **k: FakeLoc(True, sink)
         record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "Accept All"}])
         assert sink == ["clicked"], "overlay that appears (even late) is clicked"
 
         absent = []
-        record.resolve_locator = lambda page, loc: FakeLoc(False, absent)
+        record.resolve_locator = lambda page, loc, *a, **k: FakeLoc(False, absent)
         record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "Accept All"}], timeout_ms=10)
         assert absent == [], "overlay that never appears is skipped (no error)"
 
-        def boom(page, loc): raise RuntimeError("nope")
+        def boom(page, loc, *a, **k): raise RuntimeError("nope")
         record.resolve_locator = boom
         record.dismiss_overlays(FakePage([0]), [{"role": "button", "name": "x"}])  # must not raise
     finally:
@@ -242,6 +264,7 @@ def main() -> int:
     test_settle_returns_when_text_stabilizes()
     test_settle_times_out_when_text_keeps_growing()
     test_do_action_dispatch()
+    test_wait_for_action()
     test_point_is_noop()
     test_fill_types_visibly_with_delay()
     test_dismiss_overlays()

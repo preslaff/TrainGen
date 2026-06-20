@@ -15,9 +15,10 @@ defaults:
     en: "voice_en_calm"
 
   # Pre-roll overlays closed during setup (before recording) so they don't blur/obscure
-  # the flow. Best-effort: clicked only if present+visible. (en-UI cookie consent.)
+  # the flow. Best-effort: clicked only if present+visible. name_key resolves per-locale
+  # (cookie consent renders "Accept All" / "Приеми всички"); literal name kept as a fallback.
   dismiss:
-    - { role: button, name: "Accept All" }
+    - { role: button, name_key: "consent.acceptAll", name: "Accept All" }
 
   # Per-role login for record/verify. Secrets come from env vars (NEVER committed here):
   #   admin key -> TRAINGEN_ADMIN_PASSWORD. Set TRAINGEN_BASE_URL to the live demo tenant.
@@ -53,7 +54,9 @@ defaults:
 
 scenarios:
 
-  # Phase 0 dogfood — public, no login/tenant/OTP. UI locale: /en (en-UI labels).
+  # Phase 0 dogfood — public, no login/tenant/OTP. Locale-neutral: entry_route + locators
+  # carry no language; the run's lang is inserted into the route and *_key locators resolve to
+  # the rendered string via the message catalog, so BG records the BG UI and EN the EN UI.
   # Uses the centered Viki concierge (MeetVikiCentered) on the home page — already visible,
   # so no "open chat" step. Sends on Enter (the "Send message" button name is shared with the
   # contact form, so it's ambiguous).
@@ -65,20 +68,20 @@ scenarios:
     goal: >
       Show a visitor how to ask the Viki travel concierge a question about Bulgaria
       on the home page and read the assistant's answer.
-    entry_route: "/en"
+    entry_route: "/"
     needs_seed_record: false
     destructive: false
     steps:
       - id: type-question
         intent: "Type a travel question into the Viki concierge"
-        locator: { placeholder: "Ask about Bulgaria..." }
+        locator: { placeholder_key: "viki.placeholder", placeholder: "Ask about Bulgaria..." }
         action: fill
         value: "Which Bulgarian towns are best for wine tasting?"
         emphasis: zoom
         settle_ms: 500
       - id: send-question
         intent: "Send the question to the concierge"
-        locator: { placeholder: "Ask about Bulgaria..." }
+        locator: { placeholder_key: "viki.placeholder", placeholder: "Ask about Bulgaria..." }
         action: press
         value: "Enter"
         emphasis: highlight
@@ -103,7 +106,7 @@ scenarios:
     goal: >
       Show a visitor how to explore tourism partners on the interactive map: zoom into
       a town to reveal individual places, then open one to see its details.
-    entry_route: "/en/explore"
+    entry_route: "/explore"
     needs_seed_record: false
     destructive: false
     steps:
@@ -114,13 +117,13 @@ scenarios:
         settle_ms: 1500
       - id: close-filters
         intent: "Close the filter panel for a full view of the map"
-        locator: { role: button, name: "Close filters" }   # sidebar is open by default + occludes the map controls
+        locator: { role: button, name_key: "explore.closeFilters", name: "Close filters" }   # sidebar open by default, occludes controls
         action: click
         emphasis: highlight
         settle_ms: 600
       - id: zoom-in
         intent: "Zoom into a town to reveal individual places instead of clusters"
-        locator: { role: button, name: "Zoom in" }
+        locator: { role: button, name: "Zoom in" }   # Mapbox control — English in all locales
         action: click
         repeat: 5               # each click zooms one level; ~5 unclusters the pins
         repeat_delay_ms: 500
@@ -141,22 +144,129 @@ scenarios:
       # the narration explains it, WITHOUT clicking (explain-only beat, no state change).
       - id: explain-view-profile
         intent: "Explain that View profile opens the partner's full page with more detail"
-        locator: { role: link, name: "View profile" }
+        locator: { role: link, name_key: "memberCard.viewProfile", name: "View profile" }
         action: point
         emphasis: highlight
         settle_ms: 2500
       - id: explain-add-itinerary
         intent: "Explain that Add to Itinerary saves this place to your trip plan"
-        locator: { role: button, name: "Add to Itinerary" }
+        locator: { role: button, name_key: "memberCard.addToItinerary", name: "Add to Itinerary" }
         action: point
         emphasis: highlight
         settle_ms: 2500
       - id: explain-book-direct
         intent: "Explain that Book Direct lets you reserve with the partner directly"
-        locator: { role: button, name: "Book Direct" }
+        locator: { role: button, name_key: "memberCard.bookDirectButton", name: "Book Direct" }
         action: point
         emphasis: highlight
         settle_ms: 2500
+
+  # Member onboarding tour walkthrough. Public-of-the-member flow: log in as the demo member,
+  # launch the guided tour ("Take a tour" — works regardless of tour_completed_at), and step
+  # through its 12 cards. The record loop clicks THEN dwells, so each "Next" reveals the next
+  # card and the dwell+narration describe what's on screen (no off-by-one). All durable
+  # role+name locators. The tour is content we WANT (we only dismiss it during the enrich crawl).
+  - scenario_id: member-onboarding-tour
+    title:
+      bg: "Обиколка за нови партньори"
+      en: "The member onboarding tour"
+    role: member
+    goal: >
+      Walk a new partner-member through the guided dashboard tour so they know where every
+      part of their portal lives — profile, offerings, bookings, analytics and more.
+    entry_route: "/member/dashboard"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on your member dashboard"
+        action: settle          # let the dashboard's charts/stats finish loading BEFORE the tour,
+        emphasis: none           # so "Take a tour" opens it instantly and the cards stay in sync
+        settle_ms: 1500
+      - id: start-tour
+        intent: "Launch the guided onboarding tour from the dashboard"
+        locator: { role: button, name_key: "tour.takeTour", name: "Take a tour" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1400
+      - id: await-tour
+        intent: "The tour opens with a welcome to your member dashboard"
+        locator: { role: button, name_key: "tour.next", name: "Next" }   # block until the tour is actually open (it can
+        action: wait_for                            # open late); dwell here narrates the welcome card
+        emphasis: none
+        settle_ms: 1800
+      - id: tour-overview
+        intent: "Introduce the Overview, where you track your key stats at a glance"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-profile
+        intent: "Show the Profile section, where you edit your business details"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-offerings
+        intent: "Show Offerings, where you list the services and products you provide"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-marketplace
+        intent: "Show the Marketplace, where you discover partner deals and listings"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-events
+        intent: "Show Events, where you publish and manage your upcoming events"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-stories
+        intent: "Show Stories, where you share updates that reach visitors"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-reviews
+        intent: "Show Reviews, where you read and respond to visitor feedback"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-bookings
+        intent: "Show Bookings, where you track incoming reservation requests"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-analytics
+        intent: "Show Analytics, where you see how visitors find and engage with you"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-qrcodes
+        intent: "Show QR codes, which let visitors reach your profile instantly"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-wrapup
+        intent: "Reach the final step confirming your setup is complete"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 1200
+      - id: finish-tour
+        intent: "Finish the tour and return to your dashboard, ready to start"
+        locator: { role: button, name_key: "tour.finish", name: "Finish" }
+        action: click
+        emphasis: zoom
+        settle_ms: 1500
 
   - scenario_id: add-partner-profile
     title:

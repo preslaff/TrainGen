@@ -33,6 +33,8 @@ class Config:
     login: dict | None = None      # optional auth block (see record.login)
     dismiss: list = field(default_factory=list)   # pre-roll overlays to close (cookie banner, etc.)
     subtitles: str = "per_step"    # "per_step" | "aeneas"
+    messages_dir: str | None = None   # frontend next-intl messages/ dir, for locale-aware locators
+    locale_scopes: list = field(default_factory=lambda: ["admin", "member"])  # route segments before the locale
     # script narration LLM (falls back to echo when no key)
     script_backend: str = "anthropic"   # "anthropic" | "echo"
     script_model: str = "claude-opus-4-8"
@@ -86,6 +88,8 @@ def load_config(path=MANIFEST) -> Config:
         login=d.get("login"),
         dismiss=d.get("dismiss", []),
         subtitles=_env_or(d, "subtitles", "TRAINGEN_SUBTITLES", "per_step"),
+        messages_dir=_env_or(d, "messages_dir", "TRAINGEN_MESSAGES_DIR", None),
+        locale_scopes=d.get("locale_scopes", ["admin", "member"]),
         script_backend=_env_or(d, "script_backend", "TRAINGEN_SCRIPT_BACKEND", "anthropic"),
         script_model=_env_or(d, "script_model", "TRAINGEN_SCRIPT_MODEL", "claude-opus-4-8"),
         script_effort=_env_or(d, "script_effort", "TRAINGEN_SCRIPT_EFFORT", "low"),

@@ -221,6 +221,61 @@ scenarios:
         emphasis: highlight
         settle_ms: 2500
 
+  # Phase 0 dogfood #4 — the AI itinerary planner (/plan), the marquee public feature. Free-text
+  # path: describe a trip -> Generate -> the AI builds a day-by-day itinerary (~15-25s) -> explore
+  # results. The generation wait uses `wait_for` on the results "Save & Share" button (long
+  # timeout), so the dwell tracks the real AI latency instead of racing it. Locale-neutral.
+  # (The clarification sub-flow is conditional and didn't trigger for this prompt; if it ever
+  # does, that's the runtime sub-step-insertion case — handled separately.)
+  - scenario_id: plan-trip
+    title:
+      bg: "Планиране на пътуване с Вики"
+      en: "Planning a trip with the AI concierge"
+    role: public
+    goal: >
+      Show a visitor how to describe their ideal trip in plain language and let the AI
+      concierge generate a personalised, day-by-day Bulgaria itinerary they can save and map.
+    entry_route: "/plan"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-plan
+        intent: "Open the trip planner, where the AI concierge builds your itinerary"
+        action: settle
+        emphasis: none
+        settle_ms: 1800
+      - id: describe-trip
+        intent: "Describe your ideal trip in your own words"
+        locator: { placeholder_key: "aiTrip.placeholder", placeholder: "E.g., I want a relaxing 4-day trip with wine tasting, spa hotels, and scenic mountain views..." }
+        action: fill
+        value: "A relaxing 3-day trip around Plovdiv with wine tasting and history"
+        emphasis: zoom
+        settle_ms: 800
+      - id: generate
+        intent: "Ask the concierge to generate your itinerary"
+        locator: { role: button, name_key: "aiTrip.generate", name: "Generate" }
+        action: click
+        emphasis: highlight
+        settle_ms: 800
+      - id: await-itinerary
+        intent: "The concierge plans your trip day by day, choosing places and timings"
+        locator: { role: button, name_key: "trip.saveAndShare", name: "Save & Share" }   # appears on results
+        action: wait_for
+        timeout_ms: 90000     # AI generation ~15-25s; wait, don't race it
+        emphasis: none
+        settle_ms: 2500
+      - id: view-itinerary
+        intent: "Here is your personalised day-by-day plan, with places to visit and the order to see them"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+      - id: point-save-share
+        intent: "Explain that you can save your trip and share it with travel companions"
+        locator: { role: button, name_key: "trip.saveAndShare", name: "Save & Share" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2500
+
   # Member onboarding tour walkthrough. Public-of-the-member flow: log in as the demo member,
   # launch the guided tour ("Take a tour" — works regardless of tour_completed_at), and step
   # through its 12 cards. The record loop clicks THEN dwells, so each "Next" reveals the next

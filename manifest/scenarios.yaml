@@ -276,6 +276,72 @@ scenarios:
         emphasis: highlight
         settle_ms: 2500
 
+  # Phase 0 dogfood #5 — become a partner: the benefits page (/founding-member) -> the
+  # application (/partner/apply). Showcases EVERY partner benefit, then shows how to apply.
+  # Deliberately fills the form but does NOT submit (no junk application; the 3-step indicator
+  # already shows the structure). Locale-neutral; the apply CTA is opened via its href (the app
+  # builds the localized link). Benefits enumerated in the narration intents below.
+  - scenario_id: become-partner
+    title:
+      bg: "Станете партньор на платформата"
+      en: "Becoming a platform partner"
+    role: public
+    goal: >
+      Show a tourism business every benefit of joining Wonderful Bulgaria — reaching European
+      tourists with zero commission, the AI concierge, direct bookings, a member dashboard, the
+      EU marketing network and community events — then how to start their partner application.
+    entry_route: "/founding-member"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-benefits
+        intent: "Introduce joining the platform — reach European tourists with zero commission and AI-driven marketing"
+        action: settle
+        emphasis: none
+        settle_ms: 2200
+      - id: view-benefits
+        intent: >
+          Walk through everything a partner gets from day one: a profile and search listing, the
+          AI concierge Viki promoting you, direct commission-free bookings, a member dashboard with
+          analytics, the EU-wide marketing network, and access to the partner community and events
+        locator: { role: heading, name_key: "pages.foundingMember.package.title", name: "Everything included from day 1" }
+        action: point
+        emphasis: highlight
+        settle_ms: 4500
+      - id: start-application
+        intent: "Start your partner application"
+        locator: { css: 'a[href*="/partner/apply"]' }   # app builds the localized link
+        action: click
+        emphasis: zoom
+        settle_ms: 1800
+      - id: enter-business-name
+        intent: "Enter your business name to begin the application"
+        locator: { placeholder_key: "partner.businessNamePlaceholder", placeholder: "e.g. Hotel Residence Plovdiv" }
+        action: fill
+        value: "Hotel Morska Zvezda"
+        emphasis: zoom
+        settle_ms: 500
+      - id: enter-email
+        intent: "Add the contact email where travellers and the team can reach you"
+        locator: { placeholder_key: "trip.emailPlaceholder", placeholder: "your@email.com" }
+        action: fill
+        value: "contact@morska-zvezda.bg"
+        emphasis: zoom
+        settle_ms: 500
+      - id: enter-phone
+        intent: "Add a contact phone number"
+        locator: { placeholder_key: "memberDashboard.phonePlaceholder", placeholder: "+359..." }
+        action: fill
+        value: "+359 52 123 456"
+        emphasis: zoom
+        settle_ms: 500
+      - id: point-next
+        intent: "Pick your business type, then continue through the three short steps — business info, location and contact, then details — to submit"
+        locator: { role: button, name_key: "partner.next", name: "Next" }
+        action: point
+        emphasis: highlight
+        settle_ms: 2800
+
   # Member onboarding tour walkthrough. Public-of-the-member flow: log in as the demo member,
   # launch the guided tour ("Take a tour" — works regardless of tour_completed_at), and step
   # through its 12 cards. The record loop clicks THEN dwells, so each "Next" reveals the next

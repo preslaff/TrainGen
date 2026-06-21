@@ -29,8 +29,9 @@ class StubNarrator:
         self.lang_text = lang_text
         self.calls = 0
 
-    def narrate(self, goal, steps, lang):
+    def narrate(self, goal, steps, lang, style="instructional"):
         self.calls += 1
+        self.last_style = style
         return {s["id"]: f"[{lang}] {self.lang_text}: {s['id']}" for s in steps}
 
 
@@ -69,9 +70,27 @@ def test_run_uses_narrator_per_language_and_caches():
     print("OK  run: narration is per-language and cached; narrator name recorded")
 
 
+def test_narration_style_routed_from_scenario():
+    shutil.rmtree(prod_config.OUT, ignore_errors=True)
+    cfg = _cfg()
+    n = StubNarrator("BG")
+    promo = {**SCENARIO, "scenario_id": "promo", "narration_style": "promotional"}
+    script.run(promo, "bg", cfg, narrator=n)
+    assert n.last_style == "promotional", "scenario narration_style reaches the narrator"
+    # default scenario -> instructional
+    n2 = StubNarrator("BG")
+    script.run(SCENARIO, "en", cfg, narrator=n2)
+    assert n2.last_style == "instructional", "no narration_style -> instructional default"
+    # the two system prompts differ in voice
+    assert "advert" in script._system_for("promotional", "English").lower()
+    assert "training" in script._system_for("instructional", "English").lower()
+    print("OK  style: narration_style routes promotional vs instructional system prompt")
+
+
 def main() -> int:
     test_echo_fallback_when_no_key()
     test_run_uses_narrator_per_language_and_caches()
+    test_narration_style_routed_from_scenario()
     print("\nall script tests passed")
     return 0
 

@@ -15,7 +15,7 @@ import sys
 
 from traingen import choreograph, compose, config, narrate, script
 
-SCENARIO_ID = "add-partner-profile"
+SCENARIO_ID = "concierge-chatbot"
 LANG = "bg"
 
 

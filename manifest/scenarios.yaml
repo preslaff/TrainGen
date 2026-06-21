@@ -342,6 +342,100 @@ scenarios:
         emphasis: highlight
         settle_ms: 2800
 
+  # Platform presentation / advert — "the idea", both sides. ONE continuous public video that
+  # sweeps the whole platform: the vision (home) -> explore real partners on the map -> plan a
+  # trip with the AI concierge (live generation) -> the partner directory -> the partner value
+  # (founding-member) -> close on the idea. narration_style: promotional switches script.py to
+  # the marketing voice (aspirational brand advert, not a tutorial). Locale-neutral; navigates
+  # between public surfaces (locale auto-inserted). Drop branded assets/{intro,outro}_<lang>.mp4
+  # to bookend it. ~90-120s.
+  - scenario_id: platform-overview
+    title:
+      bg: "Wonderful Bulgaria — платформата"
+      en: "Wonderful Bulgaria — the platform"
+    role: public
+    narration_style: promotional
+    goal: >
+      Advertise the idea of Wonderful Bulgaria: an AI-powered platform that connects travelers
+      with authentic local tourism partners — travelers discover and plan trips effortlessly,
+      and partners reach European visitors commission-free.
+    entry_route: "/"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-home
+        intent: "The vision — discover authentic Bulgaria through an AI platform that connects travelers with real local partners"
+        action: settle
+        emphasis: none
+        settle_ms: 2600
+      - id: meet-viki
+        intent: "Meet Viki, the AI travel concierge ready to answer anything about Bulgaria"
+        locator: { placeholder_key: "viki.placeholder", placeholder: "Ask about Bulgaria..." }
+        action: point
+        emphasis: highlight
+        settle_ms: 2600
+      - id: go-explore
+        intent: "Explore an interactive map of real, verified local partners across the whole country"
+        action: navigate
+        value: "/explore"
+        emphasis: none
+        settle_ms: 3800
+      - id: go-plan
+        intent: "Dreaming of a trip? Just describe the journey you imagine"
+        action: navigate
+        value: "/plan"
+        emphasis: none
+        settle_ms: 2400
+      - id: describe-trip
+        intent: "Tell Viki the trip you have in mind, in your own words"
+        locator: { placeholder_key: "aiTrip.placeholder", placeholder: "E.g., I want a relaxing 4-day trip with wine tasting, spa hotels, and scenic mountain views..." }
+        action: fill
+        value: "A relaxing 3-day trip around Plovdiv with wine tasting and history"
+        emphasis: zoom
+        settle_ms: 800
+      - id: generate
+        intent: "And let the concierge do the planning"
+        locator: { role: button, name_key: "aiTrip.generate", name: "Generate" }
+        action: click
+        emphasis: highlight
+        settle_ms: 800
+      - id: await-itinerary
+        intent: "In seconds, a personalised day-by-day itinerary takes shape"
+        locator: { role: button, name_key: "trip.saveAndShare", name: "Save & Share" }
+        action: wait_for
+        timeout_ms: 90000
+        emphasis: none
+        settle_ms: 2500
+      - id: view-itinerary
+        intent: "Every day mapped out — the right places, in the perfect order"
+        action: settle
+        emphasis: none
+        settle_ms: 3200
+      - id: go-directory
+        intent: "And every place is a real local business you can discover and book directly"
+        action: navigate
+        value: "/directory"
+        emphasis: none
+        settle_ms: 3000
+      - id: go-partners
+        intent: "For the businesses behind them, the platform means reaching European travelers, commission-free"
+        action: navigate
+        value: "/founding-member"
+        emphasis: none
+        settle_ms: 2400
+      - id: show-benefits
+        intent: "A profile and listing, the AI concierge, direct bookings, a member dashboard and a Europe-wide marketing network — everything included"
+        locator: { role: heading, name_key: "pages.foundingMember.package.title", name: "Everything included from day 1" }
+        action: point
+        emphasis: highlight
+        settle_ms: 4200
+      - id: close
+        intent: "Wonderful Bulgaria — where travelers and authentic local partners meet"
+        action: navigate
+        value: "/"
+        emphasis: none
+        settle_ms: 3200
+
   # Member onboarding tour walkthrough. Public-of-the-member flow: log in as the demo member,
   # launch the guided tour ("Take a tour" — works regardless of tour_completed_at), and step
   # through its 12 cards. The record loop clicks THEN dwells, so each "Next" reveals the next

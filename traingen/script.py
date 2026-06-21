@@ -89,26 +89,84 @@ def get_narrator(cfg: config.Config):
         return EchoNarrator()
 
 
-def run(scenario: dict, lang: str, cfg: config.Config, narrator=None) -> dict:
+def _save_store(path, doc: dict) -> None:
+    """Persist a generated script doc to the durable, git-tracked narration store."""
+    import datetime
+    path.parent.mkdir(parents=True, exist_ok=True)
+    store = {
+        "scenario_id": doc["scenario_id"], "lang": doc["lang"],
+        "saved_at": datetime.date.today().isoformat(),
+        "narrator": doc.get("narrator", "echo"),
+        "steps": {s["id"]: s["narration"] for s in doc["steps"]},
+    }
+    path.write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _doc_from_store(scenario: dict, lang: str, cfg, store: dict) -> dict:
+    """Build the script doc VERBATIM from the durable store (no LLM). Steps missing from the
+    store (e.g. a newly added scenario step) fall back to their intent, flagged + logged."""
+    sid = scenario["scenario_id"]
+    stored = store.get("steps", {})
+    steps = []
+    for s in scenario["steps"]:
+        if s["id"] in stored:
+            steps.append({"id": s["id"], "intent": s["intent"],
+                          "narration": stored[s["id"]], "source": "stored"})
+        else:
+            print(f"[{sid}/{lang}] script: step '{s['id']}' not in the narration store "
+                  "-> intent fallback (run --regenerate-script to capture it)")
+            steps.append({"id": s["id"], "intent": s["intent"],
+                          "narration": s["intent"], "source": "intent"})
+    return {
+        "scenario_id": sid, "lang": lang,
+        "voice": cfg.voices.get(lang, f"voice_{lang}_calm"),
+        "narrator": store.get("narrator", "stored"),
+        "locked": True,
+        "steps": steps,
+    }
+
+
+def run(scenario: dict, lang: str, cfg: config.Config, narrator=None, *,
+        force_regen: bool = False) -> dict:
+    """Generate per-language narration, persisting it to a durable store. Once a store exists
+    the narration is reused VERBATIM (deterministic, no LLM) so OmniVoice lexicon tuning never
+    drifts; only `force_regen=True` (run.py --regenerate-script) produces fresh text."""
     sid = scenario["scenario_id"]
     ld = config.lang_dir(sid, lang)
     out = ld / "script.json"
+    store_path = config.script_store(sid, lang)
+
+    # Deterministic path: reuse the durable store verbatim (no LLM).
+    if not force_regen and store_path.exists():
+        doc = _doc_from_store(scenario, lang, cfg,
+                              json.loads(store_path.read_text(encoding="utf-8")))
+        out.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+        return doc
+
     narrator = narrator or get_narrator(cfg)
     key = digest("script-v2", scenario, lang, getattr(narrator, "name", "echo"))
-    if is_fresh(ld / "script.hash", key, [out]):
-        return json.loads(out.read_text(encoding="utf-8"))
+    # No store yet but a fresh working copy exists (pre-store recordings): migrate it into the
+    # durable store so it persists across `out/` wipes, then use it.
+    if not force_regen and is_fresh(ld / "script.hash", key, [out]):
+        doc = json.loads(out.read_text(encoding="utf-8"))
+        _save_store(store_path, doc)
+        return doc
 
     style = scenario.get("narration_style", "instructional")   # "promotional" for advert videos
     texts = narrator.narrate(scenario["goal"], scenario["steps"], lang, style)
     steps = [{"id": s["id"], "intent": s["intent"],
-              "narration": texts.get(s["id"]) or s["intent"]} for s in scenario["steps"]]
+              "narration": texts.get(s["id"]) or s["intent"],
+              "source": "generated" if texts.get(s["id"]) else "intent"}
+             for s in scenario["steps"]]
     doc = {
         "scenario_id": sid,
         "lang": lang,
         "voice": cfg.voices.get(lang, f"voice_{lang}_calm"),
         "narrator": getattr(narrator, "name", "echo"),
+        "locked": False,
         "steps": steps,
     }
     out.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
     write_stamp(ld / "script.hash", key)
+    _save_store(store_path, doc)            # auto-save: durable + survives `rm -rf out/`
     return doc

@@ -51,6 +51,8 @@ test:      ## run all offline tests
 	python -m tests.test_choreograph
 	python -m tests.test_tts
 	python -m tests.test_enrich
+	python -m tests.test_i18n
+	python -m tests.test_regen
 
 clean:
 	rm -rf out/*

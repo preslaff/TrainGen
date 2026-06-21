@@ -13,6 +13,7 @@ from . import env as _env  # noqa: F401  (side effect: load repo-root .env into 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "manifest" / "scenarios.yaml"
 OUT = ROOT / "out"
+NARRATION = ROOT / "narration"   # git-TRACKED durable narration store (survives `rm -rf out/`)
 
 
 @dataclass
@@ -111,3 +112,9 @@ def lang_dir(scenario_id: str, lang: str) -> Path:
     p = OUT / scenario_id / lang
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def script_store(scenario_id: str, lang: str) -> Path:
+    """Path to the durable, git-tracked narration store for a (scenario, lang). Read side does
+    not mkdir; the writer creates NARRATION/ when it saves."""
+    return NARRATION / f"{scenario_id}.{lang}.json"

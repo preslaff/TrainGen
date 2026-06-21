@@ -13,7 +13,8 @@ from pathlib import Path
 from traingen import config as prod_config
 from traingen import script
 
-prod_config.OUT = Path(tempfile.mkdtemp())   # never touch real out/
+prod_config.OUT = Path(tempfile.mkdtemp())          # never touch real out/
+prod_config.NARRATION = Path(tempfile.mkdtemp())    # never touch the real narration/ store
 
 SCENARIO = {
     "scenario_id": "demo", "goal": "Teach creating a thing.",
@@ -55,6 +56,7 @@ def test_echo_fallback_when_no_key(monkeypatch=None):
 
 def test_run_uses_narrator_per_language_and_caches():
     shutil.rmtree(prod_config.OUT, ignore_errors=True)
+    shutil.rmtree(prod_config.NARRATION, ignore_errors=True)
     cfg = _cfg()
     bg = StubNarrator("BG")
     doc = script.run(SCENARIO, "bg", cfg, narrator=bg)
@@ -72,6 +74,7 @@ def test_run_uses_narrator_per_language_and_caches():
 
 def test_narration_style_routed_from_scenario():
     shutil.rmtree(prod_config.OUT, ignore_errors=True)
+    shutil.rmtree(prod_config.NARRATION, ignore_errors=True)
     cfg = _cfg()
     n = StubNarrator("BG")
     promo = {**SCENARIO, "scenario_id": "promo", "narration_style": "promotional"}

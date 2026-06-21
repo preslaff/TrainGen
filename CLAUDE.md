@@ -17,6 +17,8 @@ TrainGen is an auto-generated, narrated, dual-language (BG + EN) video training 
 
 **External deps:** `ffmpeg` (compose) and, for audible offline narration, `espeak-ng` — without it the offline TTS backend emits silent WAVs sized by word count (timing still valid, just no audio). `omnivoice` backend needs `pip install omnivoice torch` and a GPU.
 
+**Bulgarian TTS (`omnivoice_remote`):** For production Bulgarian narration we use `TRAINGEN_TTS=omnivoice_remote` (`traingen/tts.py` → `RemoteOmniVoiceBackend`): it POSTs plain text to an **OmniVoice-BG** LAN server running on the GPU machine — a fine-tuned Bulgarian OmniVoice with server-side stress correction (correct lexical стрес/ударение) and deterministic voice cloning. Configure `TRAINGEN_OMNIVOICE_URL` and optional per-voice references in `TRAINGEN_VOICE_DIR` (`assets/voices/<voice>.wav`+`.txt`). **The server, the stress engine, and the full TTS design are documented in the OmniVoice-BG repo: `~/WORK/OmniVoice/OMNIVOICE_BG.md`.** This repo only holds the thin client.
+
 ## Pipeline architecture
 
 Per `(scenario, lang)` the chain is:
@@ -33,6 +35,14 @@ script → narrate → choreograph → record → subtitle → compose
 - `compose.py` — FFmpeg. Places each narration clip at its `measured_start` via `adelay`, muxes onto video, prepends intro / appends outro.
 
 `run.py` is the CLI orchestrator (no n8n). Every stage is **idempotent and cacheable** — hash inputs, skip if unchanged. Editing one narration line must not force re-recording unrelated scenarios.
+
+### Deterministic narration + on-demand regeneration
+
+The narration LLM (Opus 4.8) is non-deterministic, so narration text is **frozen in a git-tracked durable store** `narration/<scenario>.<lang>.json` (step-id → text, hand-editable; NOT the manifest — the SSOT stays language-neutral). `script.run` auto-saves the store on first generation, then reuses it **verbatim** (no LLM) on every later run, surviving `rm -rf out/`. This keeps the spoken text — and the words an OmniVoice lexicon is tuned for — stable across runs. Steps added to a scenario but missing from the store fall back to their `intent` (logged) until re-generated. Three `run.py` modes:
+
+- `--regenerate-audio` — re-synthesize the audio from the **kept** script and recompose onto the **existing** video (forces `narrate` past its WAV cache; no LLM, no re-record). **This is how a server-side OmniVoice BG lexicon/stress fix reaches finished videos** (the text is unchanged, so a normal run would cache-hit the stale WAV). See `~/WORK/OmniVoice/OMNIVOICE_BG.md` for the per-word stress lexicon.
+- `--regenerate-script` — force fresh narration text (overwrites the store); the full pipeline then re-narrates + re-records since wording/durations change.
+- `--recompose` — re-run only subtitle+compose from the cached record (compose/timing changes; no re-narrate, no re-record).
 
 ## The core invariant (do not break this)
 

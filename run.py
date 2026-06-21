@@ -10,16 +10,17 @@ Each stage is cacheable; unchanged inputs are skipped. (subtitle/discover are v0
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 
 from traingen import choreograph, compose, config, narrate, record, script, subtitle
 
 
-def run_one(scenario_id: str, lang: str, cfg: config.Config) -> None:
+def run_one(scenario_id: str, lang: str, cfg: config.Config, *, force_regen: bool = False) -> None:
     scenario = config.get_scenario(scenario_id)
     tag = f"[{scenario_id}/{lang}]"
 
-    print(f"{tag} script");       sdoc = script.run(scenario, lang, cfg)
+    print(f"{tag} script");       sdoc = script.run(scenario, lang, cfg, force_regen=force_regen)
     print(f"{tag} narrate");      ndoc = narrate.run(sdoc, cfg)
     print(f"{tag} choreograph");  tl = choreograph.run(scenario, ndoc, cfg)
     print(f"{tag} record");       rlog = record.run(scenario, tl, cfg)
@@ -45,6 +46,24 @@ def recompose_one(scenario_id: str, lang: str, cfg: config.Config) -> None:
     print(f"{tag} recomposed -> {final}  (+ {vtt.name})")
 
 
+def reaudio_one(scenario_id: str, lang: str, cfg: config.Config) -> None:
+    """Re-synthesize the audio from the KEPT script and recompose onto the EXISTING video —
+    no LLM, no re-record. This is how a server-side OmniVoice lexicon/stress fix reaches the
+    final videos (the narration text is unchanged, so narrate is forced past its WAV cache)."""
+    ld = config.lang_dir(scenario_id, lang)
+    tag = f"[{scenario_id}/{lang}]"
+    try:
+        sdoc = json.loads((ld / "script.json").read_text(encoding="utf-8"))
+        rlog = json.loads((ld / "record_log.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        print(f"{tag} skip regenerate-audio — no cached script/record (run it first)")
+        return
+    print(f"{tag} narrate (force)"); ndoc = narrate.run(sdoc, cfg, force=True)
+    print(f"{tag} subtitle");        vtt = subtitle.run(sdoc, ndoc, rlog, cfg)
+    print(f"{tag} compose");         final = compose.run(rlog, ndoc, cfg)
+    print(f"{tag} audio regenerated -> {final}  (+ {vtt.name})")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="TrainGen pipeline")
     ap.add_argument("--scenario", help="scenario_id from the manifest")
@@ -52,6 +71,12 @@ def main() -> None:
     ap.add_argument("--lang", default="bg", help="comma-separated, e.g. bg,en")
     ap.add_argument("--recompose", action="store_true",
                     help="re-run subtitle+compose from the cached record (no re-record)")
+    ap.add_argument("--regenerate-audio", action="store_true",
+                    help="re-synthesize audio from the kept script + recompose (applies an "
+                         "OmniVoice lexicon fix; no LLM, no re-record)")
+    ap.add_argument("--regenerate-script", action="store_true",
+                    help="force fresh narration text (overwrites the narration/ store); "
+                         "otherwise the saved script is kept")
     ap.add_argument("--discover", action="store_true",
                     help="run discovery (extract→synthesize→verify) instead of the pipeline")
     ap.add_argument("--role", action="append", help="restrict discovery to role(s) (repeatable)")
@@ -75,7 +100,12 @@ def main() -> None:
     ids = ([s["scenario_id"] for s in config.load_scenarios()]
            if args.all else [args.scenario])
 
-    step = recompose_one if args.recompose else run_one
+    if args.recompose:
+        step = recompose_one
+    elif args.regenerate_audio:
+        step = reaudio_one
+    else:
+        step = functools.partial(run_one, force_regen=args.regenerate_script)
     for sid in ids:
         for lang in langs:
             step(sid, lang, cfg)

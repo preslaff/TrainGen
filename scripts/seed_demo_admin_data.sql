@@ -28,12 +28,14 @@ DELETE FROM itinerary_templates    WHERE organization_id = 7 AND slug  LIKE 'tg-
 -- 2) Seed a PENDING partner application (admin-applications approves/denies it) -------------
 INSERT INTO member_applications
   (business_name, business_type, contact_email, contact_phone, city, region,
-   description, applicant_message, price_range, status, organization_id, locale, created_at)
+   description, applicant_message, price_range, latitude, longitude,
+   status, organization_id, locale, created_at)
 VALUES
   ('TG Demo Wellness Spa', 'hotel', 'spa@demo.local', '+359 888 000 004', 'Bansko', 'Bansko',
    'A boutique spa and wellness retreat applying to join the platform.',
    'We would love to reach European travellers through Wonderful Bulgaria.',
-   '€€', 'pending', 7, 'en', now());
+   '€€', 41.8367, 23.4884,                 -- coords required to approve (creates a member)
+   'pending', 7, 'en', now());
 
 -- 3) Seed a PENDING review (admin-reviews approves/rejects it) ------------------------------
 INSERT INTO member_reviews

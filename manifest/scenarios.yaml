@@ -1032,3 +1032,53 @@ scenarios:
         action: settle
         emphasis: none
         settle_ms: 2000
+
+  - scenario_id: admin-applications
+    title: { bg: "Кандидатури за партньори", en: "Partner applications" }
+    role: admin
+    goal: >
+      Teach an administrator how to review a new partner application and approve it — which
+      creates the member's account — or reject it with a reason.
+    entry_route: "/admin/dashboard/applications"
+    needs_seed_record: true
+    destructive: true
+    steps:
+      - id: open-applications
+        intent: "Open Partner Applications, where businesses ask to join the platform"
+        action: settle
+        emphasis: none
+        settle_ms: 2200
+      - id: filter-pending
+        intent: "Filter to the applications still awaiting your decision"
+        locator: { role: tab, name_key: "admin.appPending", name: "Pending" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200
+      - id: open-application
+        intent: "Open the application to review the business's details"
+        locator: { role: button, name_key: "admin.viewApplication", name: "View application" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1800
+      - id: review-details
+        intent: "Read the business name, contact and description they submitted"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: approve
+        intent: "Approve the application — or reject it with a reason if it doesn't qualify"
+        locator: { role: button, name_key: "admin.appApprove", name: "Approve" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200
+      - id: confirm-approve
+        intent: "Confirm — this creates the partner's member account so they can sign in"
+        locator: { role: button, name_key: "admin.appApprove", name: "Approve", nth: -1 }
+        action: click
+        emphasis: zoom
+        settle_ms: 2000
+      - id: done
+        intent: "The application is approved and the new partner is now a member"
+        action: settle
+        emphasis: none
+        settle_ms: 1800

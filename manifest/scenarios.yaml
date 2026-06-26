@@ -1128,3 +1128,227 @@ scenarios:
         action: settle
         emphasis: none
         settle_ms: 1800
+
+  # ── Admin overview tour + read-only analytics sections ──────────────────────────
+  # The tour + analytics sections do NOT mutate, so record them with --no-seed
+  # (e.g. `bash scripts/record_admin.sh admin-overview en --no-seed`).
+  # organizations + api-keys are platformOnly — the org-scoped demo admin can't open them.
+
+  - scenario_id: admin-onboarding-tour
+    title: { bg: "Обиколка на админ конзолата", en: "The admin console tour" }
+    role: admin
+    goal: >
+      Walk an administrator through the guided tour of the admin console so they know where
+      every part lives — analytics, members, communications, moderation and applications.
+    entry_route: "/admin/dashboard"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-dashboard
+        intent: "Arrive on the admin console"
+        action: settle
+        emphasis: none
+        settle_ms: 1800
+      - id: start-tour
+        intent: "Launch the guided tour of the admin console"
+        locator: { role: button, name_key: "tour.takeTour", name: "Take a tour" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1400
+      - id: await-tour
+        intent: "The tour opens with a welcome to your admin console"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: wait_for
+        emphasis: none
+        settle_ms: 1800
+      - id: tour-overview
+        intent: "The Overview shows your platform's key numbers at a glance"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-clicks
+        intent: "Clicks tracks how visitors engage with partner listings"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-members
+        intent: "Members is where you manage every partner in your organisation"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-funnel
+        intent: "The Funnel shows how visits convert into leads and bookings"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-leads
+        intent: "Leads collects the enquiries visitors send to partners"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-visitors
+        intent: "Visitors breaks down who is exploring the platform"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-events
+        intent: "The visitor event log shows what people do on the platform"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-profiles
+        intent: "Visitor profiles let you see returning visitors in detail"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-communications
+        intent: "Communications is where you broadcast announcements to partners"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-expos
+        intent: "Expos manages trade events and notifies your partners"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-itineraries
+        intent: "Itineraries holds the premade trips travellers can start from"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-reviews
+        intent: "Reviews is where you moderate visitor feedback"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-marketplace
+        intent: "Marketplace is where you moderate partner-to-partner listings"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-bookings
+        intent: "Bookings shows every reservation request across your partners"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-applications
+        intent: "Applications is where new partners ask to join"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 900
+      - id: tour-wrapup
+        intent: "That covers every section of your admin console"
+        locator: { role: button, name_key: "tour.next", name: "Next" }
+        action: click
+        emphasis: none
+        settle_ms: 1000
+      - id: tour-finish
+        intent: "Finish the tour and you're ready to administrate and moderate the platform"
+        locator: { role: button, name_key: "tour.finish", name: "Finish" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1500
+
+  - scenario_id: admin-overview
+    title: { bg: "Преглед на таблото", en: "The analytics overview" }
+    role: admin
+    goal: >
+      Orient an administrator on the analytics overview — the platform's key numbers, trends
+      and totals at a glance.
+    entry_route: "/admin/dashboard"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-overview
+        intent: "Open the admin console overview"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: read-kpis
+        intent: "These cards summarise clicks, sessions, bookings and leads, with the change over time"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+      - id: read-trend
+        intent: "The chart below tracks the daily trend so you can spot momentum at a glance"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+
+  - scenario_id: admin-bookings
+    title: { bg: "Заявки за резервации", en: "Booking requests" }
+    role: admin
+    goal: >
+      Show an administrator the bookings view, where every reservation request across all
+      partners can be tracked and filtered by status.
+    entry_route: "/admin/dashboard/bookings"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-bookings
+        intent: "Open Bookings, the reservation requests across all your partners"
+        action: settle
+        emphasis: none
+        settle_ms: 2800
+      - id: read-bookings
+        intent: "Each row shows the guest, the partner, the dates and the request's status"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+
+  - scenario_id: admin-leads
+    title: { bg: "Запитвания от посетители", en: "Visitor leads" }
+    role: admin
+    goal: >
+      Show an administrator the leads dashboard — the enquiries visitors send, with their
+      interests and the partners they were matched to.
+    entry_route: "/admin/dashboard/leads"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-leads
+        intent: "Open Leads, the enquiries visitors send through the platform"
+        action: settle
+        emphasis: none
+        settle_ms: 2800
+      - id: read-leads
+        intent: "See the totals, the most-wanted interests and the partners leads were matched to"
+        action: settle
+        emphasis: none
+        settle_ms: 3000
+
+  - scenario_id: admin-marketplace
+    title: { bg: "Модериране на маркетплейс", en: "Marketplace moderation" }
+    role: admin
+    goal: >
+      Show an administrator the marketplace moderation queue, where partner-to-partner listings
+      are approved, rejected or cleared of flags.
+    entry_route: "/admin/dashboard/marketplace"
+    needs_seed_record: false
+    destructive: false
+    steps:
+      - id: open-marketplace
+        intent: "Open the Marketplace moderation queue"
+        action: settle
+        emphasis: none
+        settle_ms: 2800
+      - id: read-marketplace
+        intent: "Here you review partner listings and approve, reject or clear flagged ones"
+        action: settle
+        emphasis: none
+        settle_ms: 3000

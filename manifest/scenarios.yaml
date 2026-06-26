@@ -824,3 +824,211 @@ scenarios:
         action: settle
         emphasis: none
         settle_ms: 3000
+
+  # ── Administrator scenarios ─────────────────────────────────────────────────────
+  # role: admin (the demo-tutorials org admin key, org-scoped). These perform REAL actions, so
+  # the demo org must be reset+seeded to a known state before each run — use
+  #   bash scripts/record_admin.sh <scenario> <lang>
+  # which applies scripts/seed_demo_admin_data.sql then records. Created rows are sentinel-tagged
+  # ("TG Demo" / "tg-demo-") so the next reset cleans them. Locale-neutral entry_route +
+  # admin-namespace *_key locators; dialog submit buttons share the page button's label, so they
+  # use nth:-1 (the dialog's is last).
+
+  - scenario_id: admin-communications
+    title: { bg: "Съобщения до партньорите", en: "Announcements to partners" }
+    role: admin
+    goal: >
+      Teach an administrator how to write a platform announcement that reaches every partner on
+      their member dashboard — choosing the type, title and message, and publishing it.
+    entry_route: "/admin/dashboard/communications"
+    needs_seed_record: false
+    destructive: true
+    steps:
+      - id: open-comms
+        intent: "Open Communications, where you broadcast announcements to all partners"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+      - id: new-announcement
+        intent: "Start a new announcement"
+        locator: { role: button, name_key: "admin.commsCreate", name: "New Announcement" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200
+      - id: await-form
+        intent: "The announcement form opens — pick the type, then write the message"
+        locator: { placeholder_key: "admin.commsTitlePlaceholder", placeholder: "e.g. Tourism Digitalization Grant" }
+        action: wait_for
+        timeout_ms: 8000
+        emphasis: none
+        settle_ms: 1000
+      - id: enter-title
+        intent: "Give the announcement a clear title partners will see"
+        locator: { placeholder_key: "admin.commsTitlePlaceholder", placeholder: "e.g. Tourism Digitalization Grant" }
+        action: fill
+        value: "TG Demo Summer Campaign"
+        emphasis: zoom
+        settle_ms: 600
+      - id: enter-body
+        intent: "Write the message itself"
+        locator: { placeholder_key: "admin.commsBodyPlaceholder", placeholder: "Announcement details..." }
+        action: fill
+        value: "Join our summer campaign — new commission-free booking incentives for all partners."
+        emphasis: zoom
+        settle_ms: 600
+      - id: publish
+        intent: "Publish the announcement to every partner's dashboard"
+        locator: { role: button, name_key: "admin.commsCreate", name: "New Announcement", nth: -1 }
+        action: click
+        emphasis: highlight
+        settle_ms: 1800
+      - id: confirm
+        intent: "The announcement now appears in the list, live for all partners"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+
+  - scenario_id: admin-expos
+    title: { bg: "Изложения и събития", en: "Expos and events" }
+    role: admin
+    goal: >
+      Teach an administrator how to create an expo or trade event and announce it to partners —
+      including notifying members by email and posting it to their dashboards.
+    entry_route: "/admin/dashboard/expos"
+    needs_seed_record: false
+    destructive: true
+    steps:
+      - id: open-expos
+        intent: "Open Expos, where you publish trade events and fairs and tell partners about them"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+      - id: new-expo
+        intent: "Start a new expo"
+        locator: { role: button, name_key: "admin.exposCreate", name: "New Expo" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200
+      - id: await-form
+        intent: "The expo form opens — name the event and set when it runs"
+        locator: { placeholder_key: "admin.exposNamePlaceholder", placeholder: "e.g. ITB Berlin 2026" }
+        action: wait_for
+        timeout_ms: 8000
+        emphasis: none
+        settle_ms: 1000
+      - id: enter-name
+        intent: "Name the expo"
+        locator: { placeholder_key: "admin.exposNamePlaceholder", placeholder: "e.g. ITB Berlin 2026" }
+        action: fill
+        value: "TG Demo Autumn Tourism Fair"
+        emphasis: zoom
+        settle_ms: 600
+      - id: notify-members
+        intent: "Choose to notify every partner by email about this expo"
+        locator: { label_key: "admin.exposNotifyMembers", label: "Notify all members by email" }
+        action: click
+        emphasis: highlight
+        settle_ms: 600
+      - id: announce-expo
+        intent: "And post it as an announcement on their dashboards"
+        locator: { label_key: "admin.exposCreateAnnouncement", label: "Post as a member-dashboard announcement" }
+        action: click
+        emphasis: highlight
+        settle_ms: 600
+      - id: create-expo
+        intent: "Create the expo and send it to your partners"
+        locator: { role: button, name_key: "admin.exposCreate", name: "New Expo", nth: -1 }
+        action: click
+        emphasis: highlight
+        settle_ms: 1800
+      - id: confirm
+        intent: "The expo is live and your partners have been notified"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+
+  - scenario_id: admin-itineraries
+    title: { bg: "Готови маршрути", en: "Premade itineraries" }
+    role: admin
+    goal: >
+      Teach an administrator how to create a premade itinerary template that travellers can
+      start from on the trip planner.
+    entry_route: "/admin/dashboard/itineraries"
+    needs_seed_record: false
+    destructive: true
+    steps:
+      - id: open-itineraries
+        intent: "Open Itinerary Templates, the curated trips travellers can start from"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+      - id: new-template
+        intent: "Start a new itinerary template"
+        locator: { role: button, name_key: "admin.createTemplate", name: "New Template" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200
+      - id: await-form
+        intent: "The template form opens — give it a title, length and pace"
+        locator: { css: 'div[role="dialog"] input' }   # Title (form fields lack testids/assoc labels — gap)
+        action: wait_for
+        timeout_ms: 8000
+        emphasis: none
+        settle_ms: 1000
+      - id: enter-title
+        intent: "Title the itinerary so travellers recognise it"
+        locator: { css: 'div[role="dialog"] input' }   # first dialog text input = Title
+        action: fill
+        value: "TG Demo Rose Valley Weekend"
+        emphasis: zoom
+        settle_ms: 600
+      - id: enter-description
+        intent: "Describe what the trip covers"
+        locator: { css: 'div[role="dialog"] textarea' }
+        action: fill
+        value: "A relaxed two-day escape through the Rose Valley with spa stays and tastings."
+        emphasis: zoom
+        settle_ms: 600
+      - id: create-template
+        intent: "Save the template so it appears on the trip planner"
+        locator: { role: button, name_key: "admin.createTemplate", name: "New Template", nth: -1 }
+        action: click
+        emphasis: highlight
+        settle_ms: 1800
+      - id: confirm
+        intent: "The new itinerary template is now available to travellers"
+        action: settle
+        emphasis: none
+        settle_ms: 2000
+
+  - scenario_id: admin-reviews
+    title: { bg: "Модериране на отзиви", en: "Moderating reviews" }
+    role: admin
+    goal: >
+      Teach an administrator how to moderate visitor reviews — approving a pending review to
+      publish it, or rejecting it so it never appears.
+    entry_route: "/admin/dashboard/reviews"
+    needs_seed_record: true
+    destructive: true
+    steps:
+      - id: open-reviews
+        intent: "Open Review Moderation, where pending reviews await your decision"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: read-review
+        intent: "Read the pending review — its rating, who wrote it, and what they said"
+        action: settle
+        emphasis: none
+        settle_ms: 2500
+      - id: approve-review
+        intent: "Approve it to publish the review on the partner's profile (or reject to hide it)"
+        locator: { title_key: "admin.approveReview", title: "Approve" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1800
+      - id: confirm
+        intent: "The review is approved and now visible to visitors"
+        action: settle
+        emphasis: none
+        settle_ms: 2000

@@ -181,6 +181,24 @@ def test_resolve_locator_routing():
     print("OK  resolve_locator: testid/placeholder/label/role routed; css escape hatch; empty raises")
 
 
+def test_resolve_locator_nth():
+    class FakeLoc:
+        def __init__(self): self.picked = None
+        def nth(self, n): self.picked = ("nth", n); return self
+        @property
+        def last(self): self.picked = ("last",); return self
+    class P:
+        def __init__(self): self.loc = FakeLoc()
+        def get_by_role(self, role, name=None): return self.loc
+    p = P()
+    out = record.resolve_locator(p, {"role": "button", "name": "New Announcement", "nth": -1})
+    assert out.picked == ("last",), "nth: -1 picks the last match (e.g. a modal submit vs the page button)"
+    p2 = P()
+    record.resolve_locator(p2, {"role": "button", "name": "X", "nth": 2})
+    assert p2.loc.picked == ("nth", 2), "nth: N picks the Nth match"
+    print("OK  resolve_locator: nth disambiguates repeated accessible names (modal submit)")
+
+
 def test_click_repeat():
     el = FakeEl()
     record.do_action(FakePage([0]), el, {"action": "click", "repeat": 5, "repeat_delay_ms": 1})
@@ -269,6 +287,7 @@ def main() -> int:
     test_fill_types_visibly_with_delay()
     test_dismiss_overlays()
     test_resolve_locator_routing()
+    test_resolve_locator_nth()
     test_click_repeat()
     test_login_api_modes()
     print("\nall record tests passed")

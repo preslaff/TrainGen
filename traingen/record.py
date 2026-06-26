@@ -114,21 +114,29 @@ def resolve_locator(page, loc: dict, lang=None, messages_dir=None):
     `css` is a FLAGGED escape hatch for genuinely non-semantic UIs — e.g. Mapbox pins
     that are real DOM nodes but carry only a class, no testid/accessible name
     (MULTIMODAL.md §1/§8). Prefer filing a test-id gap over leaving a css locator.
+
+    `nth` disambiguates when an accessible name legitimately repeats — e.g. a modal's submit
+    button shares the page button's label ("New Announcement" on the page AND in the dialog);
+    `nth: -1` picks the last (the dialog's). Negative indexes count from the end.
     """
     loc = localize_locator(loc, lang, messages_dir)
     if "testid" in loc:
-        return page.get_by_test_id(loc["testid"])
-    if "placeholder" in loc:
-        return page.get_by_placeholder(loc["placeholder"])
-    if "label" in loc:
-        return page.get_by_label(loc["label"])
-    if "role" in loc:
-        return page.get_by_role(loc["role"], name=loc.get("name"))
-    if "title" in loc:
-        return page.get_by_title(loc["title"])   # icon-button tooltip (semantic-ish)
-    if "css" in loc:
-        return page.locator(loc["css"])     # escape hatch — fragility-tagged
-    raise ValueError(f"unresolvable locator: {loc}")
+        base = page.get_by_test_id(loc["testid"])
+    elif "placeholder" in loc:
+        base = page.get_by_placeholder(loc["placeholder"])
+    elif "label" in loc:
+        base = page.get_by_label(loc["label"])
+    elif "role" in loc:
+        base = page.get_by_role(loc["role"], name=loc.get("name"))
+    elif "title" in loc:
+        base = page.get_by_title(loc["title"])   # icon-button tooltip (semantic-ish)
+    elif "css" in loc:
+        base = page.locator(loc["css"])           # escape hatch — fragility-tagged
+    else:
+        raise ValueError(f"unresolvable locator: {loc}")
+    if "nth" in loc:
+        base = base.last if loc["nth"] == -1 else base.nth(loc["nth"])
+    return base
 
 
 def do_action(page, el, step: dict, cfg=None, lang=None) -> None:

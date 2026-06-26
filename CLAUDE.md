@@ -52,9 +52,13 @@ Auto-screencasts desync because predicted timing drifts from actual playback. Th
 
 Language-neutral. Defines **intent + semantic targets only**. Narration text is *generated* from `goal` + per-step `intent` and must never be hand-written into the manifest.
 
-- **Locator priority: `testid` > `label` > `role+name`. Never raw CSS** (brittle against copy/markup changes).
+- **Locator priority: `testid` > `placeholder`/`label` > `role`+`name` > `title` > `css` (flagged escape hatch). Never raw CSS for semantic controls** (brittle against copy/markup changes). `*_key` variants resolve i18n per locale. `nth` disambiguates a repeated accessible name (e.g. a modal submit that shares the page button's label — `nth: -1`).
 - `scenario_id` is kebab-case, stable, and used in output filenames — don't rename casually.
 - Schema and field meanings are in `docs/BLUEPRINT.md` §3.
+
+### Admin scenarios (real mutating actions)
+
+The 11 `admin-*` scenarios (`role: admin`) perform **real** actions (approve an application, create an announcement/expo/itinerary, moderate a review, edit a member). The demo admin key is **org-scoped** (org_id=7) and sees only its own org's data, and those flows consume/accumulate rows, so the demo org must be **reset+seeded to a known state before each mutating run**. Record them with `bash scripts/record_admin.sh <scenario> <lang>` (applies `scripts/seed_demo_admin_data.sql` — a pending application *with GPS coords*, a pending review, sample announcement/expo/itinerary; sentinel-scoped, idempotent — then runs the pipeline). Read-only sections (`admin-overview/bookings/leads/marketplace`, `admin-onboarding-tour`) don't mutate — add `--no-seed`. `organizations`/`api-keys` are platform-only and omitted. Section entry is the locale-neutral route (`localize_route` inserts `/admin/<lang>/dashboard/…`); per-row controls target the **seeded row by its fixed sentinel title** (data, so locale-neutral).
 
 ## Dual-language
 

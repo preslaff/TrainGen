@@ -1082,3 +1082,49 @@ scenarios:
         action: settle
         emphasis: none
         settle_ms: 1800
+
+  - scenario_id: admin-members
+    title: { bg: "Редактиране на профил на партньор", en: "Editing a partner profile" }
+    role: admin
+    goal: >
+      Teach an administrator how to open a partner's profile, update their public business
+      details, and save the change so visitors see it.
+    entry_route: "/admin/dashboard/members"
+    needs_seed_record: false
+    destructive: true
+    steps:
+      - id: open-members
+        intent: "Open Members — every partner in your organisation"
+        action: settle
+        emphasis: none
+        settle_ms: 2200
+      - id: open-member
+        intent: "Open a partner to manage their profile"
+        locator: { css: 'tr:has-text("Demo Seaside Hotel")' }   # row onClick opens the sheet (name is data, locale-neutral)
+        action: click
+        emphasis: highlight
+        settle_ms: 1800
+      - id: open-profile-tab
+        intent: "Switch to the Profile tab to edit their public details"
+        locator: { role: tab, name_key: "admin.profileTab", name: "Profile" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1200
+      - id: edit-description
+        intent: "Update the business description visitors will read"
+        locator: { css: 'div[role="dialog"] textarea' }   # first sheet textarea = description (fields lack testids)
+        action: fill
+        value: "Demo Seaside Hotel offers comfortable rooms steps from the beach, with a spa, sea-view dining and warm local hospitality."
+        emphasis: zoom
+        settle_ms: 800
+      - id: save
+        intent: "Save the changes so the updated profile goes live"
+        locator: { role: button, name_key: "admin.appSave", name: "Save Changes" }
+        action: click
+        emphasis: highlight
+        settle_ms: 1800
+      - id: confirm
+        intent: "The profile is updated and now visible to visitors"
+        action: settle
+        emphasis: none
+        settle_ms: 1800
